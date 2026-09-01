@@ -6,7 +6,6 @@
 
 대시보드 시연을 원한다면? 📥 다운로드 [대시보드 공유 파일](https://github.com/JHPark-kor/Oracle-Project/raw/main/docs/share/mnc_dashboard_share.zip)
 
-발표 자료는 여기에 📄 다운로드 [성과공유회 발표자료 PDF](https://github.com/JHPark-kor/Oracle-Project/raw/main/docs/presentation.pdf)
 
 ## Project Goal
 
@@ -53,13 +52,6 @@ flowchart LR
 | 대시보드와 정책 우선지역 유형화 | [`notebooks/dashboard/`](notebooks/dashboard/) | `01_vulnerability_index_build.ipynb`, `03_vulnerability_region_kmeans.ipynb`, `04_h3sfca_category_dbscan.py` |
 | 데이터 출처와 폴더 관리 기준 | [`metadata/data_metadata.md`](metadata/data_metadata.md), [`docs/folder_guide.md`](docs/folder_guide.md) | 데이터 설명, 제외 파일 기준 |
 
-## Presentation PDF
-
-발표자료 PDF는 아래 파일에서 확인할 수 있습니다.
-
-| Material | Link |
-| --- | --- |
-| Final Presentation PDF | [`docs/presentation.pdf`](docs/presentation.pdf) |
 
 ## Repository Structure
 
