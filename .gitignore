@@ -9,6 +9,13 @@ data/**
 !data/interim/.gitkeep
 !data/processed/
 !data/processed/.gitkeep
+!data/processed/**/
+!data/processed/**/.gitkeep
+!data/dashboard/
+!data/dashboard/**/
+!data/dashboard/**/.gitkeep
+!data/metadata/
+!data/metadata/**
 
 # Legacy local data location after moving code to notebooks/table_design.
 analysis_table/
@@ -20,9 +27,13 @@ analysis_table/
 **/outputs/
 notebooks/**/data/
 notebooks/**/reference/
-output/
-outputs/
-image/
+output/**
+!output/
+!output/**/
+!output/**/.gitkeep
+/outputs/
+/image/
+legacy/
 
 # Generated website/dashboard/presentation assets
 docs/assets/
@@ -39,7 +50,7 @@ codex_build/
 transfers.txt
 
 # Scripts excluded from the final presentation code collection
-scripts/
+/scripts/
 
 # Local reference report files
 docs/references/reports/**/*.pdf
