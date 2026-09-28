@@ -1,4 +1,4 @@
-"""Select the lower-cost walk/transit path and calculate beta sensitivity.
+"""Prioritize feasible walking paths, then calculate beta sensitivity.
 
 Exhibition facilities are intentionally absent until their dataset is supplied.
 The current categories are performance and sports viewing facilities.
@@ -295,7 +295,7 @@ def main() -> None:
                 [walk_normalized, transit_normalized], ignore_index=True
             )
             candidates = candidates.sort_values(
-                ["GRID_CD", "generalized_cost", "mode_priority"], kind="stable"
+                ["GRID_CD", "mode_priority", "generalized_cost"], kind="stable"
             )
             best = candidates.drop_duplicates("GRID_CD", keep="first").reset_index(
                 drop=True
@@ -533,8 +533,11 @@ def main() -> None:
     summary = {
         "available_facility_categories": categories,
         "exhibition_status": "skipped_until_dataset_is_supplied",
-        "path_selection": "minimum_generalized_cost_between_walk_and_transit",
-        "walk_transit_tie_break": "walk",
+        "path_selection": "walk_if_available_else_transit",
+        "walk_priority_rule": (
+            "Any facility reachable within 20 minutes on foot uses the walking "
+            "path regardless of the transit generalized cost."
+        ),
         "population_filter": "취약노인수 > 0",
         "maximum_walk_candidate_time_min": 20.0,
         "maximum_transit_total_walk_time_min": 15.0,

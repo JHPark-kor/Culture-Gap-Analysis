@@ -6,6 +6,7 @@
   "duplicate_grid_facility_pairs": 0,
   "required_null_cells": 0,
   "mode_candidate_errors": 0,
+  "walk_priority_errors": 0,
   "selected_cost_errors": 0,
   "generalized_cost_errors": 0,
   "journey_time_errors": 0,

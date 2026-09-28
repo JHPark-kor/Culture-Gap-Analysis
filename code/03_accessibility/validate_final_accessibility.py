@@ -117,6 +117,7 @@ def main() -> None:
     duplicate_pairs = 0
     required_null_cells = 0
     mode_candidate_errors = 0
+    walk_priority_errors = 0
     selected_cost_errors = 0
     generalized_cost_errors = 0
     journey_time_errors = 0
@@ -158,13 +159,19 @@ def main() -> None:
              | (is_transit & ~transit_available)
              | ~(is_walk | is_transit)).sum()
         )
-        chosen_candidate_cost = np.where(is_walk, walk_cost, transit_cost)
-        minimum_candidate_cost = np.fmin(walk_cost, transit_cost)
+        expected_walk = walk_available
+        expected_transit = ~walk_available & transit_available
+        walk_priority_errors += int(
+            ((is_walk != expected_walk) | (is_transit != expected_transit)).sum()
+        )
+        chosen_candidate_cost = np.where(walk_available, walk_cost, transit_cost)
         selected_cost_errors += int(
-            (
-                ~np.isclose(selected_cost, chosen_candidate_cost, rtol=0.0, atol=1e-12)
-                | ~np.isclose(selected_cost, minimum_candidate_cost, rtol=0.0, atol=1e-12)
-            ).sum()
+            (~np.isclose(
+                selected_cost,
+                chosen_candidate_cost,
+                rtol=0.0,
+                atol=1e-12,
+            )).sum()
         )
         expected_generalized = (
             frame["distance_burden"].to_numpy(dtype=float)
@@ -331,6 +338,8 @@ def main() -> None:
         issues.append(f"found {required_null_cells} null cells in required fields")
     if mode_candidate_errors:
         issues.append(f"found {mode_candidate_errors} mode/candidate availability errors")
+    if walk_priority_errors:
+        issues.append(f"found {walk_priority_errors} walk-priority errors")
     if selected_cost_errors:
         issues.append(f"found {selected_cost_errors} selected-cost errors")
     if generalized_cost_errors:
@@ -361,6 +370,7 @@ def main() -> None:
         "duplicate_grid_facility_pairs": int(duplicate_pairs),
         "required_null_cells": int(required_null_cells),
         "mode_candidate_errors": int(mode_candidate_errors),
+        "walk_priority_errors": int(walk_priority_errors),
         "selected_cost_errors": int(selected_cost_errors),
         "generalized_cost_errors": int(generalized_cost_errors),
         "journey_time_errors": int(journey_time_errors),

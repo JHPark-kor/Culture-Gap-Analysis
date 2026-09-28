@@ -60,6 +60,8 @@ oracle_mnc_project/
 
 접근성 파이프라인은 서울 100m 격자 가운데 `grid_senior_population_score.csv`의 `취약노인수 > 0`인 21,263개 격자에서 공연 및 스포츠관람 시설까지의 도보·대중교통 경로를 계산합니다. 도보는 20분, 대중교통은 접근·환승·하차 보행 합계 15분과 기대대기시간을 포함한 전체 여정 90분을 상한으로 적용합니다. 거리, DEM 기반 절대경사각, 환승 횟수와 전일 배차간격 중앙값 기반 기대대기시간을 동일 가중치로 결합합니다.
 
+시설별 최종 수단은 도보 20분 경로가 있으면 비용 비교 없이 도보를 우선 채택하고, 도보 경로가 없을 때만 대중교통을 채택합니다.
+
 - 코드와 실행 순서: `code/03_accessibility/README.md`
 - 원본·전처리 자료: `data/raw/spatial/accessibility/`, `data/processed/accessibility/`
 - 데이터 인벤토리와 검증 기록: `data/metadata/accessibility/`
