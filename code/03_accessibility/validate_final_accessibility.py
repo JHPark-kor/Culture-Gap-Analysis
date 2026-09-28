@@ -287,7 +287,15 @@ def main() -> None:
     expected_overall_sum = overall_beta_3_by_grid[
         accessibility["GRID_CD"].astype(str).map(grid_to_code).to_numpy(dtype=np.int32)
     ]
-    expected_overall_normalized = expected_overall_sum / overall_facility_count
+    expected_overall_min = float(np.min(overall_beta_3_by_grid))
+    expected_overall_max = float(np.max(overall_beta_3_by_grid))
+    expected_overall_range = expected_overall_max - expected_overall_min
+    if expected_overall_range <= 0:
+        expected_overall_minmax = np.zeros_like(expected_overall_sum)
+    else:
+        expected_overall_minmax = (
+            expected_overall_sum - expected_overall_min
+        ) / expected_overall_range
     overall_differences = {
         "overall_accessibility_beta_3_sum": float(
             np.max(
@@ -299,34 +307,34 @@ def main() -> None:
                 )
             )
         ),
-        "overall_accessibility_beta_3_normalized_0_1": float(
+        "overall_accessibility_beta_3_minmax_0_1": float(
             np.max(
                 np.abs(
-                    expected_overall_normalized
+                    expected_overall_minmax
                     - accessibility[
-                        "overall_accessibility_beta_3_normalized_0_1"
+                        "overall_accessibility_beta_3_minmax_0_1"
                     ].to_numpy(dtype=float)
                 )
             )
         ),
-        "overall_accessibility_beta_3_percent_0_100": float(
+        "overall_accessibility_beta_3_minmax_0_100": float(
             np.max(
                 np.abs(
-                    100.0 * expected_overall_normalized
+                    100.0 * expected_overall_minmax
                     - accessibility[
-                        "overall_accessibility_beta_3_percent_0_100"
+                        "overall_accessibility_beta_3_minmax_0_100"
                     ].to_numpy(dtype=float)
                 )
             )
         ),
-        "overall_accessibility_deficit_0_1": float(
+        "overall_accessibility_deficit_minmax_0_1": float(
             np.max(
                 np.abs(
                     1.0
-                    - expected_overall_normalized
-                    - accessibility["overall_accessibility_deficit_0_1"].to_numpy(
-                        dtype=float
-                    )
+                    - expected_overall_minmax
+                    - accessibility[
+                        "overall_accessibility_deficit_minmax_0_1"
+                    ].to_numpy(dtype=float)
                 )
             )
         ),

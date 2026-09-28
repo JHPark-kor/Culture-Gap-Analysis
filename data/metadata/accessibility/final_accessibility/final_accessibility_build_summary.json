@@ -16,7 +16,9 @@
     4.0
   ],
   "accessibility_formula": "sum(exp(-beta * generalized_cost))",
-  "overall_accessibility_formula": "100 / all_facilities * sum(exp(-3 * generalized_cost)); unreachable facilities contribute 0",
+  "overall_accessibility_formula": "min-max normalize sum(exp(-3 * generalized_cost)) across analyzed grids; unreachable facilities contribute 0",
+  "overall_accessibility_minmax_source_min": 0.0,
+  "overall_accessibility_minmax_source_max": 108.82260152788298,
   "overall_accessibility_scope": "all facility categories combined",
   "overall_facility_count": 361,
   "facility_rows": 361,

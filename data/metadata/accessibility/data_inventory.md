@@ -13,7 +13,7 @@
 | 취약노인 인구 | `data/processed/accessibility/population/grid_senior_population_score.csv` | 격자별 기존 취약노인수; 접근성 단계에서 재추정하지 않음 |
 | 네트워크 스냅 | `data/processed/accessibility/network_snap/` | 취약노인수가 있는 21,263개 격자와 361개 시설의 보행망 최근접 노드 |
 | 배차 전처리 | `data/processed/accessibility/transit/` | 노선 및 노선 방향 패턴별 전일 배차간격 중앙값 |
-| 최종 결과 | `output/report/accessibility/` | 격자당 한 행의 전체 시설 기준 충족 시설 수, beta=2·3·4 접근성, 종합 0~100점과 1-정규화 값 |
+| 최종 결과 | `output/report/accessibility/` | 격자당 한 행의 전체 시설 기준 충족 시설 수, beta=2·3·4 접근성, beta=3 합계의 min-max 0~100점과 1-min-max 취약도 |
 | 처리 기록 | `data/metadata/accessibility/` | 단계별 생성·검증 요약과 고정 교통부담 산식 |
 | 코드 | `code/03_accessibility/` | 전처리, 네트워크 경로, 접근성 계산, 독립 검증 코드 |
 
@@ -63,4 +63,4 @@
 - 대중교통 경로 상한: 총보행 15분, 기대대기 포함 전체 90분
 - 최종 수단 선택: 도보 20분 경로가 있으면 도보 우선, 없으면 대중교통
 - 접근성 민감도: beta=2, 3, 4
-- 전체 시설 종합점수: `100 / 361 × Σ exp(-3G)`; 접근 불가 시설 기여도 0
+- 전체 시설 종합점수: `Σ exp(-3G)`를 분석 격자의 관측 최솟값·최댓값으로 min-max 정규화; 접근 불가 시설 기여도 0

@@ -464,17 +464,26 @@ def main() -> None:
 
     overall_beta_3_sum = grid_accessibility["accessibility_beta_3"]
     overall_facility_count = int(len(facilities))
-    overall_normalized = overall_beta_3_sum / overall_facility_count
+    overall_min = float(overall_beta_3_sum.min())
+    overall_max = float(overall_beta_3_sum.max())
+    overall_range = overall_max - overall_min
+    if overall_range <= 0:
+        overall_minmax = pd.Series(
+            np.zeros(len(grid_accessibility), dtype=np.float64),
+            index=grid_accessibility.index,
+        )
+    else:
+        overall_minmax = (overall_beta_3_sum - overall_min) / overall_range
     grid_accessibility["overall_facility_count"] = overall_facility_count
     grid_accessibility["overall_accessibility_beta_3_sum"] = overall_beta_3_sum
-    grid_accessibility["overall_accessibility_beta_3_normalized_0_1"] = (
-        overall_normalized
+    grid_accessibility["overall_accessibility_beta_3_minmax_0_1"] = (
+        overall_minmax
     )
-    grid_accessibility["overall_accessibility_beta_3_percent_0_100"] = (
-        100.0 * overall_normalized
+    grid_accessibility["overall_accessibility_beta_3_minmax_0_100"] = (
+        100.0 * overall_minmax
     )
-    grid_accessibility["overall_accessibility_deficit_0_1"] = (
-        1.0 - overall_normalized
+    grid_accessibility["overall_accessibility_deficit_minmax_0_1"] = (
+        1.0 - overall_minmax
     )
     grid_accessibility.to_csv(grid_output_path, index=False, encoding="utf-8-sig")
 
@@ -545,9 +554,11 @@ def main() -> None:
         "beta_values": list(BETA_VALUES),
         "accessibility_formula": "sum(exp(-beta * generalized_cost))",
         "overall_accessibility_formula": (
-            "100 / all_facilities * sum(exp(-3 * generalized_cost)); "
-            "unreachable facilities contribute 0"
+            "min-max normalize sum(exp(-3 * generalized_cost)) across analyzed "
+            "grids; unreachable facilities contribute 0"
         ),
+        "overall_accessibility_minmax_source_min": overall_min,
+        "overall_accessibility_minmax_source_max": overall_max,
         "overall_accessibility_scope": "all facility categories combined",
         "overall_facility_count": overall_facility_count,
         "facility_rows": int(len(facilities)),

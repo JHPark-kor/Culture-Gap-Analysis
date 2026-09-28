@@ -30,9 +30,9 @@
   },
   "overall_accessibility_max_absolute_differences": {
     "overall_accessibility_beta_3_sum": 2.842170943040401e-14,
-    "overall_accessibility_beta_3_normalized_0_1": 1.3877787807814457e-16,
-    "overall_accessibility_beta_3_percent_0_100": 1.0658141036401503e-14,
-    "overall_accessibility_deficit_0_1": 2.220446049250313e-16
+    "overall_accessibility_beta_3_minmax_0_1": 3.3306690738754696e-16,
+    "overall_accessibility_beta_3_minmax_0_100": 4.263256414560601e-14,
+    "overall_accessibility_deficit_minmax_0_1": 4.163336342344337e-16
   },
   "issues": []
 }
