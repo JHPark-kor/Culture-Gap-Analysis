@@ -94,9 +94,9 @@
 ## 9. 최종 경로와 접근성 민감도
 
 - `final_accessibility/grid_facility_best_paths_mode_limits.parquet`: 같은 격자-시설 쌍에서 각 수단의 허용 기준을 통과한 도보와 대중교통 중 종합 이동비용이 작은 최종 경로
-- `final_accessibility/grid_category_accessibility_beta_sensitivity.csv`: 격자·분야별 기준 충족 시설 수, β=2·3·4 접근성 지수, 전체 시설 종합 정규화 점수
+- `final_accessibility/grid_category_accessibility_beta_sensitivity.csv`: 격자별 전체 시설 기준 충족 시설 수, β=2·3·4 접근성 지수, 종합 정규화 점수
 - `final_accessibility/beta_sensitivity_distribution.csv`: β별 접근성 분포
 - `final_accessibility/beta_sensitivity_correlations.csv`: β 조합별 피어슨 및 스피어만 상관
 - `final_accessibility/final_accessibility_validation.json`: 최종 경로 선택과 접근성 합산 독립 재검증
 
-최종 경로는 4,822,866개이며 도보 선택 23,544개, 대중교통 선택 4,799,322개다. 분야별 접근성은 `A_i,c = Σ exp(-βG_ij)`로 계산한다. 전체 문화시설 종합점수는 공연 357개와 스포츠관람 4개를 한 집합으로 보고 `100 / 361 × Σ exp(-3G_ij)`로 계산한다. 경로가 없는 시설은 0을 기여한다. 결과표에는 `overall_accessibility_beta_3_normalized_0_1`, `overall_accessibility_beta_3_percent_0_100`, `overall_accessibility_deficit_0_1`을 추가했으며 종합 열은 같은 격자의 공연·스포츠 행에 동일하게 반복된다. 전시시설이 추가되면 시설 마스터의 전체 시설 수에 자동 포함된다.
+최종 경로는 4,822,866개이며 도보 선택 23,544개, 대중교통 선택 4,799,322개다. 내부 계산에서는 분야별 접근성을 `A_i,c = Σ exp(-βG_ij)`로 구한 뒤 공연과 스포츠를 합산한다. 최종 CSV는 `facility_category=전체`인 격자당 한 행, 총 21,263행이다. 전체 문화시설 종합점수는 공연 357개와 스포츠관람 4개를 한 집합으로 보고 `100 / 361 × Σ exp(-3G_ij)`로 계산한다. 경로가 없는 시설은 0을 기여한다. 결과표에는 `overall_accessibility_beta_3_normalized_0_1`, `overall_accessibility_beta_3_percent_0_100`, `overall_accessibility_deficit_0_1`을 제공한다. 전시시설이 추가되면 시설 마스터의 전체 시설 수에 자동 포함된다.

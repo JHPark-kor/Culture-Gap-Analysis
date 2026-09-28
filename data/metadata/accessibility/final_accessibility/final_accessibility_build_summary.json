@@ -25,6 +25,7 @@
   "pairs_with_both_walk_and_transit_candidates": 23874,
   "walk_selected_rows": 23544,
   "transit_selected_rows": 4799322,
-  "grid_category_rows": 42526,
+  "grid_output_rows": 21263,
+  "category_calculation_rows_before_combining": 42526,
   "grid_count": 21263
 }

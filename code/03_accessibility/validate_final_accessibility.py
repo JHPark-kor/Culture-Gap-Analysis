@@ -57,10 +57,14 @@ def main() -> None:
         args.grid_accessibility,
         dtype={"GRID_CD": "string", "facility_category": "string"},
     )
-    categories = accessibility["facility_category"].drop_duplicates().astype(str).tolist()
-    category_to_code = {category: code for code, category in enumerate(categories)}
+    if len(accessibility) != len(grid_ids):
+        raise RuntimeError("Accessibility output must contain one row per grid")
+    if accessibility["GRID_CD"].duplicated().any():
+        raise RuntimeError("Accessibility output contains duplicate GRID_CD rows")
+    if set(accessibility["facility_category"].astype(str)) != {"전체"}:
+        raise RuntimeError("Accessibility output facility_category must be 전체")
     grid_count = len(grid_ids)
-    aggregate_size = grid_count * len(categories)
+    aggregate_size = grid_count
     walk_candidate_count = np.zeros(aggregate_size, dtype=np.int64)
     transit_candidate_count = np.zeros(aggregate_size, dtype=np.int64)
     feasible_count = np.zeros(aggregate_size, dtype=np.int64)
@@ -205,14 +209,7 @@ def main() -> None:
         if grid_codes.isna().any():
             issues.append(f"row group {row_group_number} contains unknown grids")
             continue
-        category_codes = frame["facility_category"].astype(str).map(category_to_code)
-        if category_codes.isna().any():
-            issues.append(f"row group {row_group_number} contains unknown categories")
-            continue
-        flat_codes = (
-            category_codes.to_numpy(dtype=np.int32) * grid_count
-            + grid_codes.to_numpy(dtype=np.int32)
-        )
+        flat_codes = grid_codes.to_numpy(dtype=np.int32)
         np.add.at(feasible_count, flat_codes, 1)
         np.add.at(walk_candidate_count, flat_codes[walk_available], 1)
         np.add.at(transit_candidate_count, flat_codes[transit_available], 1)
@@ -221,13 +218,9 @@ def main() -> None:
         for beta in BETA_VALUES:
             np.add.at(beta_sums[beta], flat_codes, np.exp(-beta * selected_cost))
 
-    expected_flat_codes = (
-        accessibility["facility_category"].astype(str).map(category_to_code).to_numpy(
-            dtype=np.int32
-        )
-        * grid_count
-        + accessibility["GRID_CD"].astype(str).map(grid_to_code).to_numpy(dtype=np.int32)
-    )
+    expected_flat_codes = accessibility["GRID_CD"].astype(str).map(
+        grid_to_code
+    ).to_numpy(dtype=np.int32)
     aggregate_differences = {
         "walk_facility_count_20min": int(
             np.count_nonzero(
@@ -283,9 +276,7 @@ def main() -> None:
     )
     if np.any(overall_facility_count <= 0):
         issues.append("overall_facility_count must be positive")
-    overall_beta_3_by_grid = beta_sums[3].reshape(len(categories), grid_count).sum(
-        axis=0
-    )
+    overall_beta_3_by_grid = beta_sums[3]
     expected_overall_sum = overall_beta_3_by_grid[
         accessibility["GRID_CD"].astype(str).map(grid_to_code).to_numpy(dtype=np.int32)
     ]

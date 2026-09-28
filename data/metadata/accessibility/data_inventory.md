@@ -13,7 +13,7 @@
 | 취약노인 인구 | `data/processed/accessibility/population/grid_senior_population_score.csv` | 격자별 기존 취약노인수; 접근성 단계에서 재추정하지 않음 |
 | 네트워크 스냅 | `data/processed/accessibility/network_snap/` | 취약노인수가 있는 21,263개 격자와 361개 시설의 보행망 최근접 노드 |
 | 배차 전처리 | `data/processed/accessibility/transit/` | 노선 및 노선 방향 패턴별 전일 배차간격 중앙값 |
-| 최종 결과 | `output/report/accessibility/` | 격자·분야별 허용 기준 충족 시설 수, beta=2·3·4 접근성, 전체 시설 종합 0~100점과 1-정규화 값 |
+| 최종 결과 | `output/report/accessibility/` | 격자당 한 행의 전체 시설 기준 충족 시설 수, beta=2·3·4 접근성, 종합 0~100점과 1-정규화 값 |
 | 처리 기록 | `data/metadata/accessibility/` | 단계별 생성·검증 요약과 고정 교통부담 산식 |
 | 코드 | `code/03_accessibility/` | 전처리, 네트워크 경로, 접근성 계산, 독립 검증 코드 |
 
@@ -53,8 +53,8 @@
 
 - 전체 입력 격자: 60,528개
 - 분석 격자: `취약노인수 > 0`인 21,263개
-- 분야: 공연, 스포츠관람
-- 최종 격자·분야 행: 121,056개
+- 내부 계산 분야: 공연, 스포츠관람
+- 최종 격자 행: 21,263개(`GRID_CD`당 1행, `facility_category=전체`)
 - 공연시설: 동일 주소·좌표 기준 357개
 - 스포츠관람시설: 4개
 - 전시시설: 자료 확보 전까지 제외

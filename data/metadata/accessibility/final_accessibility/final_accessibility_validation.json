@@ -23,15 +23,15 @@
     "selected_transit_path_count": 0
   },
   "beta_max_absolute_differences": {
-    "accessibility_beta_2": 2.842170943040401e-14,
-    "accessibility_beta_3": 1.4210854715202004e-14,
-    "accessibility_beta_4": 7.105427357601002e-15
+    "accessibility_beta_2": 5.684341886080802e-14,
+    "accessibility_beta_3": 2.842170943040401e-14,
+    "accessibility_beta_4": 2.842170943040401e-14
   },
   "overall_accessibility_max_absolute_differences": {
-    "overall_accessibility_beta_3_sum": 1.4210854715202004e-14,
-    "overall_accessibility_beta_3_normalized_0_1": 9.8879238130678e-17,
-    "overall_accessibility_beta_3_percent_0_100": 3.552713678800501e-15,
-    "overall_accessibility_deficit_0_1": 1.1102230246251565e-16
+    "overall_accessibility_beta_3_sum": 2.842170943040401e-14,
+    "overall_accessibility_beta_3_normalized_0_1": 1.3877787807814457e-16,
+    "overall_accessibility_beta_3_percent_0_100": 1.0658141036401503e-14,
+    "overall_accessibility_deficit_0_1": 2.220446049250313e-16
   },
   "issues": []
 }

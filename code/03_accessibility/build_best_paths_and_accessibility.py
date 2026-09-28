@@ -413,10 +413,56 @@ def main() -> None:
                 f"accessibility_beta_{int(beta)}"
             ]
         grid_frames.append(frame)
-    grid_accessibility = pd.concat(grid_frames, ignore_index=True)
-    overall_beta_3_sum = grid_accessibility.groupby("GRID_CD", sort=False)[
-        "accessibility_beta_3"
-    ].transform("sum")
+    category_accessibility = pd.concat(grid_frames, ignore_index=True)
+    count_columns = [
+        "walk_facility_count_20min",
+        "transit_facility_count_90min_walk15min",
+        "facility_count_any_feasible_mode",
+        "selected_walk_path_count",
+        "selected_transit_path_count",
+    ]
+    sum_columns = [
+        *count_columns,
+        *[f"accessibility_beta_{int(beta)}" for beta in BETA_VALUES],
+    ]
+    totals = category_accessibility.groupby("GRID_CD", sort=False)[sum_columns].sum()
+    nearest = (
+        category_accessibility.sort_values(
+            ["GRID_CD", "nearest_generalized_cost"],
+            kind="stable",
+            na_position="last",
+        )
+        .drop_duplicates("GRID_CD", keep="first")
+        .set_index("GRID_CD")
+    )
+    minimum_time = category_accessibility.groupby("GRID_CD", sort=False)[
+        "minimum_journey_time_min"
+    ].min()
+
+    grid_accessibility = base.copy()
+    grid_accessibility["facility_category"] = "전체"
+    for column in sum_columns:
+        values = grid_accessibility["GRID_CD"].map(totals[column]).fillna(0)
+        grid_accessibility[column] = (
+            values.astype(np.int64) if column in count_columns else values
+        )
+    grid_accessibility["nearest_generalized_cost"] = grid_accessibility[
+        "GRID_CD"
+    ].map(nearest["nearest_generalized_cost"])
+    grid_accessibility["nearest_cost_journey_time_min"] = grid_accessibility[
+        "GRID_CD"
+    ].map(nearest["nearest_cost_journey_time_min"])
+    grid_accessibility["nearest_facility_id"] = grid_accessibility["GRID_CD"].map(
+        nearest["nearest_facility_id"]
+    )
+    grid_accessibility["nearest_selected_mode"] = grid_accessibility["GRID_CD"].map(
+        nearest["nearest_selected_mode"]
+    )
+    grid_accessibility["minimum_journey_time_min"] = grid_accessibility[
+        "GRID_CD"
+    ].map(minimum_time)
+
+    overall_beta_3_sum = grid_accessibility["accessibility_beta_3"]
     overall_facility_count = int(len(facilities))
     overall_normalized = overall_beta_3_sum / overall_facility_count
     grid_accessibility["overall_facility_count"] = overall_facility_count
@@ -507,7 +553,10 @@ def main() -> None:
         "pairs_with_both_walk_and_transit_candidates": int(both_candidate_rows),
         "walk_selected_rows": int(walk_selected_rows),
         "transit_selected_rows": int(transit_selected_rows),
-        "grid_category_rows": int(len(grid_accessibility)),
+        "grid_output_rows": int(len(grid_accessibility)),
+        "category_calculation_rows_before_combining": int(
+            len(category_accessibility)
+        ),
         "grid_count": int(len(grids)),
     }
     (args.output_dir / "final_accessibility_build_summary.json").write_text(
