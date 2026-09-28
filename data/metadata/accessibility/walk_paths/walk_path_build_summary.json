@@ -1,18 +1,19 @@
 {
-  "grid_rows": 60528,
+  "grid_rows": 21263,
   "facility_rows": 361,
   "facilities_by_category": {
     "공연": 357,
     "스포츠관람": 4
   },
-  "maximum_walk_distance_m": 3600.0,
-  "maximum_walk_time_elderly_min": 60.0,
+  "maximum_walk_distance_m": 1200.0,
+  "maximum_walk_time_elderly_min": 20.0,
   "distance_burden": "min(total_walk_distance_m / 600, 1)",
   "slope_burden": "clip((path_mean_abs_slope_deg - 2) / 6, 0, 1)",
   "transport_burden_for_walk": 0.0,
   "generalized_cost_walk": "(distance_burden + slope_burden + 0) / 3",
   "slope_metric_scope": "network_edges_only; off-network snap segments have no DEM slope",
-  "path_rows": 819005,
-  "facilities_with_no_grid_within_60min": 0,
-  "grid_category_summary_rows": 121056
+  "path_rows": 27208,
+  "population_filter": "취약노인수 > 0",
+  "facilities_with_no_grid_within_20min": 2,
+  "grid_category_summary_rows": 42526
 }

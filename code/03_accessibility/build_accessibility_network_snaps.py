@@ -21,6 +21,10 @@ DEFAULT_GRID = (
     PROJECT_ROOT
     / "data/processed/accessibility/network_snap/grid_walk_node_snap.csv"
 )
+DEFAULT_POPULATION_GRID = (
+    PROJECT_ROOT
+    / "data/processed/accessibility/population/grid_senior_population_score.csv"
+)
 DEFAULT_NODES = Path(
     "outputs/fixed_accessibility_inputs/terrain/seoul_walk_nodes_elevation.parquet"
 )
@@ -36,6 +40,8 @@ DEFAULT_STOPS = Path(
     "outputs/fixed_accessibility_inputs/transit/seoul_gtfs_analysis_subset/stops.txt"
 )
 DEFAULT_OUTPUT = Path("outputs/fixed_accessibility_inputs/network_snap")
+
+POPULATION_COLUMN = "취약노인수"
 
 
 def normalize_text(value: object) -> str:
@@ -129,6 +135,9 @@ def distance_summary(values: pd.Series) -> dict[str, float | int]:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--grid", type=Path, default=DEFAULT_GRID)
+    parser.add_argument(
+        "--population-grid", type=Path, default=DEFAULT_POPULATION_GRID
+    )
     parser.add_argument("--nodes", type=Path, default=DEFAULT_NODES)
     parser.add_argument("--performance", type=Path, default=DEFAULT_PERFORMANCE)
     parser.add_argument("--sports", type=Path, default=DEFAULT_SPORTS)
@@ -153,14 +162,43 @@ def main() -> None:
         raise ValueError(f"Missing node columns: {sorted(missing_node_columns)}")
     tree = cKDTree(nodes[["x_epsg5179", "y_epsg5179"]].to_numpy(dtype=float))
 
-    grid = pd.read_csv(
+    grid_source = pd.read_csv(
         args.grid,
         encoding="utf-8-sig",
-        usecols=["GRID_CD", "행정동코드", "시군구", "행정동", "중심점_x", "중심점_y"],
+        usecols=[
+            "GRID_CD",
+            "행정동코드",
+            "시군구",
+            "행정동",
+            "중심점_x",
+            "중심점_y",
+        ],
         dtype={"GRID_CD": "string", "행정동코드": "string"},
     )
-    if grid["GRID_CD"].duplicated().any():
-        raise ValueError("GRID_CD is not unique")
+    population = pd.read_csv(
+        args.population_grid,
+        encoding="utf-8-sig",
+        usecols=["GRID_CD", POPULATION_COLUMN],
+        dtype={"GRID_CD": "string"},
+    )
+    if grid_source["GRID_CD"].duplicated().any():
+        raise ValueError("GRID_CD is not unique in the coordinate grid")
+    if population["GRID_CD"].duplicated().any():
+        raise ValueError("GRID_CD is not unique in the population grid")
+    population[POPULATION_COLUMN] = pd.to_numeric(
+        population[POPULATION_COLUMN], errors="raise"
+    )
+    source_grid_rows = len(grid_source)
+    grid_source = grid_source.merge(
+        population, on="GRID_CD", how="left", validate="one_to_one"
+    )
+    if grid_source[POPULATION_COLUMN].isna().any():
+        missing = int(grid_source[POPULATION_COLUMN].isna().sum())
+        raise ValueError(f"{missing} coordinate grids have no {POPULATION_COLUMN}")
+    grid = grid_source.loc[grid_source[POPULATION_COLUMN] > 0].reset_index(drop=True)
+    excluded_zero_population_rows = source_grid_rows - len(grid)
+    if grid.empty:
+        raise ValueError(f"No grids have {POPULATION_COLUMN} > 0")
     grid_snap = snap_points(grid, "중심점_x", "중심점_y", nodes, tree)
     to_wgs84 = Transformer.from_crs("EPSG:5179", "EPSG:4326", always_xy=True)
     grid_lon, grid_lat = to_wgs84.transform(
@@ -209,9 +247,17 @@ def main() -> None:
 
     summary = {
         "source_grid": str(args.grid),
+        "source_population_grid": str(args.population_grid),
         "source_walk_nodes": str(args.nodes),
         "walk_graph_nodes": int(len(nodes)),
+        "source_grid_rows": int(source_grid_rows),
         "grid_rows": int(len(grid_snap)),
+        "population_filter": f"{POPULATION_COLUMN} > 0",
+        "population_estimate_provenance": (
+            "provided grid_senior_population_score.csv; not re-estimated by "
+            "accessibility pipeline"
+        ),
+        "excluded_zero_population_grid_rows": int(excluded_zero_population_rows),
         "facility_rows": int(len(facility_snap)),
         "facilities_by_category": {
             str(key): int(value)

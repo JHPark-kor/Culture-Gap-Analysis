@@ -18,11 +18,11 @@ import pyarrow.parquet as pq
 
 DEFAULT_WALK_PATHS = Path(
     "outputs/fixed_accessibility_inputs/walk_paths/"
-    "walk_grid_facility_paths_60min.parquet"
+    "walk_grid_facility_paths_20min.parquet"
 )
 DEFAULT_TRANSIT_PATHS = Path(
     "outputs/fixed_accessibility_inputs/transit_paths/"
-    "transit_grid_facility_paths_60min.parquet"
+    "transit_grid_facility_paths_90min_walk15min.parquet"
 )
 DEFAULT_GRID_SNAP = Path(
     "outputs/fixed_accessibility_inputs/network_snap/grid_walk_node_snap.parquet"
@@ -47,6 +47,7 @@ FINAL_SCHEMA = pa.schema(
         ("candidate_transit_generalized_cost", pa.float64()),
         ("generalized_cost", pa.float64()),
         ("journey_time_with_wait_min", pa.float64()),
+        ("total_walk_time_min", pa.float64()),
         ("movement_time_excluding_wait_min", pa.float64()),
         ("total_expected_wait_min", pa.float64()),
         ("transfer_count", pa.int16()),
@@ -83,6 +84,7 @@ def _normalize_walk(frame: pd.DataFrame) -> pd.DataFrame:
             "selected_mode": "walk",
             "generalized_cost": frame["generalized_cost_walk"].astype(float),
             "journey_time_with_wait_min": frame["elderly_walk_time_min"].astype(float),
+            "total_walk_time_min": frame["elderly_walk_time_min"].astype(float),
             "movement_time_excluding_wait_min": frame["elderly_walk_time_min"].astype(
                 float
             ),
@@ -113,6 +115,9 @@ def _normalize_transit(frame: pd.DataFrame) -> pd.DataFrame:
             "selected_mode": "transit",
             "generalized_cost": frame["generalized_cost_transit"].astype(float),
             "journey_time_with_wait_min": frame["journey_time_with_wait_min"].astype(float),
+            "total_walk_time_min": frame[
+                "total_transit_walk_time_min"
+            ].astype(float),
             "movement_time_excluding_wait_min": frame[
                 "movement_time_excluding_wait_min"
             ].astype(float),
@@ -169,7 +174,7 @@ def _write_final_frame(
 def main() -> None:
     args = parse_args()
     args.output_dir.mkdir(parents=True, exist_ok=True)
-    output_path = args.output_dir / "grid_facility_best_paths_60min.parquet"
+    output_path = args.output_dir / "grid_facility_best_paths_mode_limits.parquet"
     grid_output_path = (
         args.output_dir / "grid_category_accessibility_beta_sensitivity.csv"
     )
@@ -198,6 +203,7 @@ def main() -> None:
         "movement_time_excluding_wait_min",
         "total_expected_wait_min",
         "journey_time_with_wait_min",
+        "total_transit_walk_time_min",
         "transfer_count",
         "path_mean_abs_slope_deg",
         "slope_burden",
@@ -215,6 +221,10 @@ def main() -> None:
     transit_row_groups = _row_group_facility_map(transit_file)
     grids = pd.read_parquet(args.grid_snap).reset_index(drop=True)
     facilities = pd.read_parquet(args.facility_snap).reset_index(drop=True)
+    if "취약노인수" not in grids.columns:
+        raise RuntimeError("Grid snap input is missing 취약노인수")
+    if (pd.to_numeric(grids["취약노인수"], errors="raise") <= 0).any():
+        raise RuntimeError("Grid snap input contains grids with 취약노인수 <= 0")
     grid_to_code = pd.Series(
         np.arange(len(grids), dtype=np.int32), index=grids["GRID_CD"].astype(str)
     )
@@ -223,8 +233,9 @@ def main() -> None:
     stats: dict[str, dict[str, np.ndarray]] = {}
     for category in categories:
         stats[category] = {
-            "count_30": np.zeros(len(grids), dtype=np.int32),
-            "count_60": np.zeros(len(grids), dtype=np.int32),
+            "walk_candidate": np.zeros(len(grids), dtype=np.int32),
+            "transit_candidate": np.zeros(len(grids), dtype=np.int32),
+            "feasible_any": np.zeros(len(grids), dtype=np.int32),
             "walk_selected": np.zeros(len(grids), dtype=np.int32),
             "transit_selected": np.zeros(len(grids), dtype=np.int32),
             "nearest_cost": np.full(len(grids), np.inf, dtype=np.float64),
@@ -317,9 +328,15 @@ def main() -> None:
             category_stats = stats[str(facility.facility_category)]
             journey_time = best["journey_time_with_wait_min"].to_numpy(dtype=float)
             generalized_cost = best["generalized_cost"].to_numpy(dtype=float)
-            category_stats["count_60"][grid_codes_array] += 1
-            within_30 = journey_time <= 30.0
-            category_stats["count_30"][grid_codes_array[within_30]] += 1
+            walk_available = best["candidate_walk_available"].to_numpy(dtype=bool)
+            transit_available = best["candidate_transit_available"].to_numpy(dtype=bool)
+            category_stats["walk_candidate"][
+                grid_codes_array[walk_available]
+            ] += 1
+            category_stats["transit_candidate"][
+                grid_codes_array[transit_available]
+            ] += 1
+            category_stats["feasible_any"][grid_codes_array] += 1
             is_walk = best["selected_mode"].eq("walk").to_numpy()
             category_stats["walk_selected"][grid_codes_array[is_walk]] += 1
             category_stats["transit_selected"][grid_codes_array[~is_walk]] += 1
@@ -356,13 +373,20 @@ def main() -> None:
         raise RuntimeError("No final grid-facility paths were generated")
 
     grid_frames: list[pd.DataFrame] = []
-    base = grids[["GRID_CD", "행정동코드", "시군구", "행정동"]].copy()
+    base = grids[
+        ["GRID_CD", "행정동코드", "시군구", "행정동", "취약노인수"]
+    ].copy()
     for category in categories:
         category_stats = stats[category]
         frame = base.copy()
         frame["facility_category"] = category
-        frame["facility_count_30min"] = category_stats["count_30"]
-        frame["facility_count_60min"] = category_stats["count_60"]
+        frame["walk_facility_count_20min"] = category_stats["walk_candidate"]
+        frame["transit_facility_count_90min_walk15min"] = category_stats[
+            "transit_candidate"
+        ]
+        frame["facility_count_any_feasible_mode"] = category_stats[
+            "feasible_any"
+        ]
         frame["selected_walk_path_count"] = category_stats["walk_selected"]
         frame["selected_transit_path_count"] = category_stats["transit_selected"]
         frame["nearest_generalized_cost"] = np.where(
@@ -390,6 +414,22 @@ def main() -> None:
             ]
         grid_frames.append(frame)
     grid_accessibility = pd.concat(grid_frames, ignore_index=True)
+    overall_beta_3_sum = grid_accessibility.groupby("GRID_CD", sort=False)[
+        "accessibility_beta_3"
+    ].transform("sum")
+    overall_facility_count = int(len(facilities))
+    overall_normalized = overall_beta_3_sum / overall_facility_count
+    grid_accessibility["overall_facility_count"] = overall_facility_count
+    grid_accessibility["overall_accessibility_beta_3_sum"] = overall_beta_3_sum
+    grid_accessibility["overall_accessibility_beta_3_normalized_0_1"] = (
+        overall_normalized
+    )
+    grid_accessibility["overall_accessibility_beta_3_percent_0_100"] = (
+        100.0 * overall_normalized
+    )
+    grid_accessibility["overall_accessibility_deficit_0_1"] = (
+        1.0 - overall_normalized
+    )
     grid_accessibility.to_csv(grid_output_path, index=False, encoding="utf-8-sig")
 
     distribution_rows: list[dict[str, object]] = []
@@ -442,16 +482,25 @@ def main() -> None:
     output_rows = pq.ParquetFile(output_path).metadata.num_rows
     if output_rows != written_rows:
         raise RuntimeError("Final path Parquet row count does not match generated rows")
-    if int(grid_accessibility["facility_count_60min"].sum()) != written_rows:
-        raise RuntimeError("Grid 60-minute counts do not reconcile to final path rows")
+    if int(grid_accessibility["facility_count_any_feasible_mode"].sum()) != written_rows:
+        raise RuntimeError("Feasible grid-facility counts do not reconcile to path rows")
     summary = {
         "available_facility_categories": categories,
         "exhibition_status": "skipped_until_dataset_is_supplied",
         "path_selection": "minimum_generalized_cost_between_walk_and_transit",
         "walk_transit_tie_break": "walk",
-        "maximum_candidate_journey_time_min": 60.0,
+        "population_filter": "취약노인수 > 0",
+        "maximum_walk_candidate_time_min": 20.0,
+        "maximum_transit_total_walk_time_min": 15.0,
+        "maximum_transit_journey_time_min": 90.0,
         "beta_values": list(BETA_VALUES),
         "accessibility_formula": "sum(exp(-beta * generalized_cost))",
+        "overall_accessibility_formula": (
+            "100 / all_facilities * sum(exp(-3 * generalized_cost)); "
+            "unreachable facilities contribute 0"
+        ),
+        "overall_accessibility_scope": "all facility categories combined",
+        "overall_facility_count": overall_facility_count,
         "facility_rows": int(len(facilities)),
         "facilities_without_any_path": int(facilities_without_any_path),
         "final_grid_facility_path_rows": int(written_rows),

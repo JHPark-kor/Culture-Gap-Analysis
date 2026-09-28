@@ -18,6 +18,7 @@
 | `data/processed/spatial/` | 서울시 100m 격자·행정동 기본 테이블 |
 | `data/processed/estimated_population/` | 서울시 500m 총인구와 100m 추정인구 |
 | `data/processed/estimated_target_population/` | 서울시 문화누리 대상인구 및 성·연령·장애별 추정 결과 |
+| `data/processed/accessibility/population/` | 접근성 출발 격자 선정용 `grid_senior_population_score.csv` 사본 |
 | `data/processed/external_population/` | 인천·경기 외부 25km 지역의 총인구와 문화누리 대상인구 추정 결과 |
 
 ## Dashboard Data

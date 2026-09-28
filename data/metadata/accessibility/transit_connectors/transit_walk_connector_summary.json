@@ -1,6 +1,6 @@
 {
-  "maximum_connector_distance_m": 600.0,
-  "maximum_connector_walk_time_min": 10.0,
+  "maximum_connector_distance_m": 900.0,
+  "maximum_connector_walk_time_min": 15.0,
   "walk_speed_m_per_min": 60.0,
   "directionality": {
     "access": "grid_to_stop_on_directed_walk_network",
@@ -8,14 +8,14 @@
   },
   "slope_scope": "walk_network_edges_only; snap segments excluded from slope",
   "all_gtfs_stops": 26504,
-  "eligible_stops": 13506,
-  "eligible_stop_walk_nodes": 9670,
-  "grid_to_stop_connectors": 595294,
-  "grids_with_access_connector": 44476,
-  "stops_with_access_connector": 13362,
-  "stop_to_facility_connectors": 6286,
-  "stops_with_egress_connector": 2548,
-  "facilities_with_egress_connector": 355,
+  "eligible_stops": 13867,
+  "eligible_stop_walk_nodes": 9704,
+  "grid_to_stop_connectors": 813577,
+  "grids_with_access_connector": 21215,
+  "stops_with_access_connector": 13156,
+  "stop_to_facility_connectors": 15124,
+  "stops_with_egress_connector": 4374,
+  "facilities_with_egress_connector": 359,
   "access_pair_duplicates": 0,
   "egress_pair_duplicates": 0
 }

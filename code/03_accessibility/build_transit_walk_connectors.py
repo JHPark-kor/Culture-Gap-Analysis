@@ -1,4 +1,4 @@
-"""Build 600 m walk connectors for grid-transit-facility routing.
+"""Build 900 m walk connectors for grid-transit-facility routing.
 
 Access connectors follow the directed walk network from a grid to a stop.
 Egress connectors follow it from a stop to a facility. Off-network snap
@@ -35,7 +35,7 @@ DEFAULT_FACILITY_SNAP = Path(
 )
 DEFAULT_OUTPUT_DIR = Path("outputs/fixed_accessibility_inputs/transit_connectors")
 
-MAX_CONNECTOR_DISTANCE_M = 600.0
+MAX_CONNECTOR_DISTANCE_M = 900.0
 WALK_SPEED_M_PER_MIN = 60.0
 WRITE_BATCH_ROWS = 100_000
 
@@ -353,14 +353,18 @@ def build_egress_connectors(
 def main() -> None:
     args = parse_args()
     args.output_dir.mkdir(parents=True, exist_ok=True)
-    access_path = args.output_dir / "grid_to_transit_stop_walk_600m.parquet"
-    egress_path = args.output_dir / "transit_stop_to_facility_walk_600m.parquet"
+    access_path = args.output_dir / "grid_to_transit_stop_walk_900m.parquet"
+    egress_path = args.output_dir / "transit_stop_to_facility_walk_900m.parquet"
 
     nodes = pd.read_parquet(args.nodes).sort_values("node_id").reset_index(drop=True)
     edges = pd.read_parquet(args.edges)
     grids = pd.read_parquet(args.grid_snap).reset_index(drop=True)
     stops = pd.read_parquet(args.stop_snap).reset_index(drop=True)
     facilities = pd.read_parquet(args.facility_snap).reset_index(drop=True)
+    if "취약노인수" not in grids.columns:
+        raise RuntimeError("Grid snap input is missing 취약노인수")
+    if (pd.to_numeric(grids["취약노인수"], errors="raise") <= 0).any():
+        raise RuntimeError("Grid snap input contains grids with 취약노인수 <= 0")
 
     adjacency, node_to_position = build_reverse_adjacency(nodes, edges)
     grids["node_position"] = grids["walk_node_id"].map(node_to_position)

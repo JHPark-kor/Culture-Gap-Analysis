@@ -13,7 +13,7 @@ import pyarrow.parquet as pq
 
 DEFAULT_PATHS = Path(
     "outputs/fixed_accessibility_inputs/final_accessibility/"
-    "grid_facility_best_paths_60min.parquet"
+    "grid_facility_best_paths_mode_limits.parquet"
 )
 DEFAULT_GRID_ACCESSIBILITY = Path(
     "outputs/fixed_accessibility_inputs/final_accessibility/"
@@ -44,7 +44,11 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     parquet_file = pq.ParquetFile(args.paths)
-    grid_table = pd.read_parquet(args.grid_snap, columns=["GRID_CD"])
+    grid_table = pd.read_parquet(
+        args.grid_snap, columns=["GRID_CD", "취약노인수"]
+    )
+    if (pd.to_numeric(grid_table["취약노인수"], errors="coerce") <= 0).any():
+        raise RuntimeError("Grid snap input contains 취약노인수 <= 0")
     grid_ids = grid_table["GRID_CD"].astype(str)
     grid_to_code = pd.Series(
         np.arange(len(grid_ids), dtype=np.int32), index=grid_ids
@@ -57,8 +61,9 @@ def main() -> None:
     category_to_code = {category: code for code, category in enumerate(categories)}
     grid_count = len(grid_ids)
     aggregate_size = grid_count * len(categories)
-    count_30 = np.zeros(aggregate_size, dtype=np.int64)
-    count_60 = np.zeros(aggregate_size, dtype=np.int64)
+    walk_candidate_count = np.zeros(aggregate_size, dtype=np.int64)
+    transit_candidate_count = np.zeros(aggregate_size, dtype=np.int64)
+    feasible_count = np.zeros(aggregate_size, dtype=np.int64)
     walk_count = np.zeros(aggregate_size, dtype=np.int64)
     transit_count = np.zeros(aggregate_size, dtype=np.int64)
     beta_sums = {
@@ -76,6 +81,7 @@ def main() -> None:
         "candidate_transit_generalized_cost",
         "generalized_cost",
         "journey_time_with_wait_min",
+        "total_walk_time_min",
         "movement_time_excluding_wait_min",
         "total_expected_wait_min",
         "transfer_count",
@@ -93,6 +99,7 @@ def main() -> None:
         "selected_mode",
         "generalized_cost",
         "journey_time_with_wait_min",
+        "total_walk_time_min",
         "movement_time_excluding_wait_min",
         "total_expected_wait_min",
         "transfer_count",
@@ -109,6 +116,7 @@ def main() -> None:
     selected_cost_errors = 0
     generalized_cost_errors = 0
     journey_time_errors = 0
+    mode_limit_errors = 0
     mode_detail_errors = 0
     burden_min = np.inf
     burden_max = -np.inf
@@ -163,13 +171,21 @@ def main() -> None:
             (~np.isclose(selected_cost, expected_generalized, rtol=0.0, atol=1e-12)).sum()
         )
         journey = frame["journey_time_with_wait_min"].to_numpy(dtype=float)
+        total_walk = frame["total_walk_time_min"].to_numpy(dtype=float)
         component_journey = (
             frame["movement_time_excluding_wait_min"].to_numpy(dtype=float)
             + frame["total_expected_wait_min"].to_numpy(dtype=float)
         )
         journey_time_errors += int(
-            ((journey > 60.0 + 1e-9)
-             | ~np.isclose(journey, component_journey, rtol=0.0, atol=1e-9)).sum()
+            (~np.isclose(journey, component_journey, rtol=0.0, atol=1e-9)).sum()
+        )
+        mode_limit_errors += int(
+            (
+                (is_walk & (journey > 20.0 + 1e-9))
+                | (is_walk & ~np.isclose(total_walk, journey, rtol=0.0, atol=1e-9))
+                | (is_transit & (journey > 90.0 + 1e-9))
+                | (is_transit & (total_walk > 15.0 + 1e-9))
+            ).sum()
         )
         has_transit_detail = (
             frame["access_stop_id"].notna().to_numpy()
@@ -197,8 +213,9 @@ def main() -> None:
             category_codes.to_numpy(dtype=np.int32) * grid_count
             + grid_codes.to_numpy(dtype=np.int32)
         )
-        np.add.at(count_60, flat_codes, 1)
-        np.add.at(count_30, flat_codes[journey <= 30.0], 1)
+        np.add.at(feasible_count, flat_codes, 1)
+        np.add.at(walk_candidate_count, flat_codes[walk_available], 1)
+        np.add.at(transit_candidate_count, flat_codes[transit_available], 1)
         np.add.at(walk_count, flat_codes[is_walk], 1)
         np.add.at(transit_count, flat_codes[is_transit], 1)
         for beta in BETA_VALUES:
@@ -212,16 +229,28 @@ def main() -> None:
         + accessibility["GRID_CD"].astype(str).map(grid_to_code).to_numpy(dtype=np.int32)
     )
     aggregate_differences = {
-        "facility_count_30min": int(
+        "walk_facility_count_20min": int(
             np.count_nonzero(
-                count_30[expected_flat_codes]
-                != accessibility["facility_count_30min"].to_numpy(dtype=np.int64)
+                walk_candidate_count[expected_flat_codes]
+                != accessibility["walk_facility_count_20min"].to_numpy(
+                    dtype=np.int64
+                )
             )
         ),
-        "facility_count_60min": int(
+        "transit_facility_count_90min_walk15min": int(
             np.count_nonzero(
-                count_60[expected_flat_codes]
-                != accessibility["facility_count_60min"].to_numpy(dtype=np.int64)
+                transit_candidate_count[expected_flat_codes]
+                != accessibility[
+                    "transit_facility_count_90min_walk15min"
+                ].to_numpy(dtype=np.int64)
+            )
+        ),
+        "facility_count_any_feasible_mode": int(
+            np.count_nonzero(
+                feasible_count[expected_flat_codes]
+                != accessibility["facility_count_any_feasible_mode"].to_numpy(
+                    dtype=np.int64
+                )
             )
         ),
         "selected_walk_path_count": int(
@@ -249,6 +278,62 @@ def main() -> None:
             )
         )
 
+    overall_facility_count = accessibility["overall_facility_count"].to_numpy(
+        dtype=np.int64
+    )
+    if np.any(overall_facility_count <= 0):
+        issues.append("overall_facility_count must be positive")
+    overall_beta_3_by_grid = beta_sums[3].reshape(len(categories), grid_count).sum(
+        axis=0
+    )
+    expected_overall_sum = overall_beta_3_by_grid[
+        accessibility["GRID_CD"].astype(str).map(grid_to_code).to_numpy(dtype=np.int32)
+    ]
+    expected_overall_normalized = expected_overall_sum / overall_facility_count
+    overall_differences = {
+        "overall_accessibility_beta_3_sum": float(
+            np.max(
+                np.abs(
+                    expected_overall_sum
+                    - accessibility["overall_accessibility_beta_3_sum"].to_numpy(
+                        dtype=float
+                    )
+                )
+            )
+        ),
+        "overall_accessibility_beta_3_normalized_0_1": float(
+            np.max(
+                np.abs(
+                    expected_overall_normalized
+                    - accessibility[
+                        "overall_accessibility_beta_3_normalized_0_1"
+                    ].to_numpy(dtype=float)
+                )
+            )
+        ),
+        "overall_accessibility_beta_3_percent_0_100": float(
+            np.max(
+                np.abs(
+                    100.0 * expected_overall_normalized
+                    - accessibility[
+                        "overall_accessibility_beta_3_percent_0_100"
+                    ].to_numpy(dtype=float)
+                )
+            )
+        ),
+        "overall_accessibility_deficit_0_1": float(
+            np.max(
+                np.abs(
+                    1.0
+                    - expected_overall_normalized
+                    - accessibility["overall_accessibility_deficit_0_1"].to_numpy(
+                        dtype=float
+                    )
+                )
+            )
+        ),
+    }
+
     if duplicate_pairs:
         issues.append(f"found {duplicate_pairs} duplicate grid-facility pairs")
     if required_null_cells:
@@ -261,6 +346,8 @@ def main() -> None:
         issues.append(f"found {generalized_cost_errors} generalized-cost errors")
     if journey_time_errors:
         issues.append(f"found {journey_time_errors} journey-time errors")
+    if mode_limit_errors:
+        issues.append(f"found {mode_limit_errors} mode-specific time-limit errors")
     if mode_detail_errors:
         issues.append(f"found {mode_detail_errors} mode-detail errors")
     if burden_min < -1e-12 or burden_max > 1.0 + 1e-12:
@@ -269,6 +356,9 @@ def main() -> None:
         if count:
             issues.append(f"{column} differs in {count} grid-category rows")
     for column, difference in beta_max_abs_differences.items():
+        if difference > 1e-9:
+            issues.append(f"{column} maximum aggregation difference is {difference}")
+    for column, difference in overall_differences.items():
         if difference > 1e-9:
             issues.append(f"{column} maximum aggregation difference is {difference}")
 
@@ -283,10 +373,12 @@ def main() -> None:
         "selected_cost_errors": int(selected_cost_errors),
         "generalized_cost_errors": int(generalized_cost_errors),
         "journey_time_errors": int(journey_time_errors),
+        "mode_limit_errors": int(mode_limit_errors),
         "mode_detail_errors": int(mode_detail_errors),
         "burden_range": [float(burden_min), float(burden_max)],
         "aggregate_row_differences": aggregate_differences,
         "beta_max_absolute_differences": beta_max_abs_differences,
+        "overall_accessibility_max_absolute_differences": overall_differences,
         "issues": issues,
     }
     args.output.write_text(

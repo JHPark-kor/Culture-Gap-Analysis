@@ -13,7 +13,7 @@ import pyarrow.parquet as pq
 
 DEFAULT_PATHS = Path(
     "outputs/fixed_accessibility_inputs/transit_paths/"
-    "transit_grid_facility_paths_60min.parquet"
+    "transit_grid_facility_paths_90min_walk15min.parquet"
 )
 DEFAULT_GRID_SUMMARY = Path(
     "outputs/fixed_accessibility_inputs/transit_paths/transit_grid_category_summary.csv"
@@ -23,6 +23,9 @@ DEFAULT_BUILD_SUMMARY = Path(
 )
 DEFAULT_FACILITIES = Path(
     "outputs/fixed_accessibility_inputs/network_snap/facility_walk_node_snap.parquet"
+)
+DEFAULT_GRIDS = Path(
+    "outputs/fixed_accessibility_inputs/network_snap/grid_walk_node_snap.parquet"
 )
 DEFAULT_OUTPUT = Path(
     "outputs/fixed_accessibility_inputs/transit_paths/transit_path_validation.json"
@@ -35,6 +38,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--grid-summary", type=Path, default=DEFAULT_GRID_SUMMARY)
     parser.add_argument("--build-summary", type=Path, default=DEFAULT_BUILD_SUMMARY)
     parser.add_argument("--facilities", type=Path, default=DEFAULT_FACILITIES)
+    parser.add_argument("--grids", type=Path, default=DEFAULT_GRIDS)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     return parser.parse_args()
 
@@ -42,6 +46,8 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     parquet_file = pq.ParquetFile(args.paths)
+    grids = pd.read_parquet(args.grids, columns=["GRID_CD", "취약노인수"])
+    eligible_grid_ids = set(grids.loc[grids["취약노인수"] > 0, "GRID_CD"].astype(str))
     columns = [
         "GRID_CD",
         "facility_id",
@@ -49,6 +55,7 @@ def main() -> None:
         "movement_time_excluding_wait_min",
         "total_expected_wait_min",
         "journey_time_with_wait_min",
+        "total_transit_walk_time_min",
         "transfer_count",
         "distance_burden",
         "slope_burden",
@@ -69,7 +76,8 @@ def main() -> None:
     issues: list[str] = []
     seen_facilities: set[str] = set()
     path_rows = 0
-    paths_within_30 = 0
+    paths_over_total_walk_limit = 0
+    ineligible_grid_path_rows = 0
     null_cells = 0
     duplicate_grid_facility_pairs = 0
     negative_transfer_counts = 0
@@ -86,6 +94,9 @@ def main() -> None:
             row_group_number, columns=columns
         ).to_pandas()
         path_rows += len(frame)
+        ineligible_grid_path_rows += int(
+            (~frame["GRID_CD"].astype(str).isin(eligible_grid_ids)).sum()
+        )
         null_cells += int(frame.isna().sum().sum())
         duplicate_grid_facility_pairs += int(
             frame[["GRID_CD", "facility_id"]].duplicated().sum()
@@ -109,7 +120,9 @@ def main() -> None:
         maximum_time_error = max(maximum_time_error, float(time_error.max()))
         journey_min = min(journey_min, float(frame["journey_time_with_wait_min"].min()))
         journey_max = max(journey_max, float(frame["journey_time_with_wait_min"].max()))
-        paths_within_30 += int((frame["journey_time_with_wait_min"] <= 30.0).sum())
+        paths_over_total_walk_limit += int(
+            (frame["total_transit_walk_time_min"] > 15.0 + 1e-9).sum()
+        )
         for column in burden_columns:
             burden_ranges[column][0] = min(
                 burden_ranges[column][0], float(frame[column].min())
@@ -127,8 +140,9 @@ def main() -> None:
     facilities = pd.read_parquet(args.facilities, columns=["facility_id"])
     all_facilities = set(facilities["facility_id"].astype(str))
     facilities_without_paths = sorted(all_facilities - seen_facilities)
-    summary_count_60 = int(grid_summary["transit_facility_count_60min"].sum())
-    summary_count_30 = int(grid_summary["transit_facility_count_30min"].sum())
+    summary_count = int(
+        grid_summary["transit_facility_count_90min_walk15min"].sum()
+    )
 
     if null_cells:
         issues.append(f"path table contains {null_cells} null cells")
@@ -138,8 +152,18 @@ def main() -> None:
         )
     if negative_transfer_counts:
         issues.append(f"path table contains {negative_transfer_counts} negative transfer counts")
-    if journey_max > 60.0 + 1e-9:
-        issues.append(f"maximum journey time exceeds 60 minutes: {journey_max}")
+    if journey_max > 90.0 + 1e-9:
+        issues.append(f"maximum journey time exceeds 90 minutes: {journey_max}")
+    if paths_over_total_walk_limit:
+        issues.append(
+            f"{paths_over_total_walk_limit} paths exceed 15 minutes of total walking"
+        )
+    if ineligible_grid_path_rows:
+        issues.append(
+            f"{ineligible_grid_path_rows} paths use a grid with 취약노인수 <= 0"
+        )
+    if (pd.to_numeric(grids["취약노인수"], errors="coerce") <= 0).any():
+        issues.append("grid input contains 취약노인수 <= 0")
     if maximum_time_error > 1e-7:
         issues.append(f"path component time mismatch reaches {maximum_time_error}")
     for column, (minimum, maximum) in burden_ranges.items():
@@ -147,10 +171,8 @@ def main() -> None:
             issues.append(f"{column} is outside [0, 1]: {minimum}, {maximum}")
     if path_rows != int(build_summary["path_rows"]):
         issues.append("path row count does not match the build summary")
-    if summary_count_60 != path_rows:
-        issues.append("60-minute grid summary counts do not reconcile to path rows")
-    if summary_count_30 != paths_within_30:
-        issues.append("30-minute grid summary counts do not reconcile to path rows")
+    if summary_count != path_rows:
+        issues.append("90-minute/15-minute grid summary counts do not reconcile")
     if len(facilities_without_paths) != int(
         build_summary["facilities_without_transit_path"]
     ):
@@ -166,15 +188,15 @@ def main() -> None:
         "null_cells": int(null_cells),
         "journey_time_min": float(journey_min),
         "journey_time_max": float(journey_max),
-        "paths_within_30_minutes": int(paths_within_30),
+        "paths_over_15_minutes_total_walking": int(paths_over_total_walk_limit),
+        "ineligible_grid_path_rows": int(ineligible_grid_path_rows),
         "maximum_component_time_error_min": float(maximum_time_error),
         "burden_ranges": {
             key: [float(value[0]), float(value[1])]
             for key, value in burden_ranges.items()
         },
         "rows_by_category": rows_by_category,
-        "summary_count_30": summary_count_30,
-        "summary_count_60": summary_count_60,
+        "summary_count_90min_walk15min": summary_count,
         "issues": issues,
     }
     args.output.write_text(

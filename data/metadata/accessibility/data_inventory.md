@@ -10,13 +10,14 @@
 | 원본 지형 | `data/raw/spatial/accessibility/dem/` | 서울 DEM 4개 ZIP 타일 |
 | 서울 경계 | `data/raw/spatial/accessibility/boundary/seoul_gu.json` | GTFS 서울 운행 필터링 경계 |
 | 시설 전처리 | `data/processed/accessibility/facilities/` | 동일 주소·좌표 공연시설 통합 결과, 원본-통합 매핑, 공연·스포츠 시설 마스터 |
-| 네트워크 스냅 | `data/processed/accessibility/network_snap/` | 60,528개 격자와 361개 시설의 보행망 최근접 노드 |
+| 취약노인 인구 | `data/processed/accessibility/population/grid_senior_population_score.csv` | 격자별 기존 취약노인수; 접근성 단계에서 재추정하지 않음 |
+| 네트워크 스냅 | `data/processed/accessibility/network_snap/` | 취약노인수가 있는 21,263개 격자와 361개 시설의 보행망 최근접 노드 |
 | 배차 전처리 | `data/processed/accessibility/transit/` | 노선 및 노선 방향 패턴별 전일 배차간격 중앙값 |
-| 최종 결과 | `output/report/accessibility/` | 격자·분야별 30분/60분 시설 수와 beta=2·3·4 접근성, 민감도 결과 |
+| 최종 결과 | `output/report/accessibility/` | 격자·분야별 허용 기준 충족 시설 수, beta=2·3·4 접근성, 전체 시설 종합 0~100점과 1-정규화 값 |
 | 처리 기록 | `data/metadata/accessibility/` | 단계별 생성·검증 요약과 고정 교통부담 산식 |
 | 코드 | `code/03_accessibility/` | 전처리, 네트워크 경로, 접근성 계산, 독립 검증 코드 |
 
-`grid_walk_node_snap.csv`는 기존 `grid_pop_access.csv`에서 `GRID_CD`, 행정구역, 중심점 좌표만 읽어 새 보행망에 스냅한 결과다. 기존 파일의 과거 접근성 열은 사용하거나 복사하지 않았다.
+`grid_walk_node_snap.csv`는 기존 `grid_pop_access.csv`에서 `GRID_CD`, 행정구역, 중심점 좌표만 읽고 새 `grid_senior_population_score.csv`의 `취약노인수`를 결합한 뒤 `취약노인수 > 0`인 격자만 보행망에 스냅한 결과다. 기존 파일의 과거 접근성 열은 사용하거나 복사하지 않았다.
 
 ## Git에서 제외한 대용량 자료
 
@@ -25,9 +26,9 @@
 | `data/raw/spatial/accessibility/network/seoul_walk.graphml` | 199 MB | 서울 전역 OSM 보행망 원본 |
 | `outputs/fixed_accessibility_inputs/terrain/seoul_walk_dem4_slope_elderly.graphml` | 359 MB | DEM·경사·노인 보행시간이 결합된 파생 그래프 |
 | `data/raw/transport/seoul_gtfs/stop_times.txt` | 1.64 GB | GTFS 대용량 정차 원본 |
-| `transit_paths/transit_grid_facility_paths_60min.parquet` | 1.08 GB | 격자-시설 대중교통 후보 경로 |
-| `final_accessibility/grid_facility_best_paths_60min.parquet` | 635 MB | 격자-시설별 최종 선택 경로 |
-| `walk_paths/walk_grid_facility_paths_60min.parquet` | 43 MB | 격자-시설 도보 경로 중간 산출물 |
+| `transit_paths/transit_grid_facility_paths_90min_walk15min.parquet` | 약 502 MB | 격자-시설 대중교통 후보 경로 |
+| `final_accessibility/grid_facility_best_paths_mode_limits.parquet` | 약 314 MB | 격자-시설별 최종 선택 경로 |
+| `walk_paths/walk_grid_facility_paths_20min.parquet` | 약 1.5 MB | 격자-시설 도보 경로 중간 산출물 |
 | 그 밖의 `outputs/fixed_accessibility_inputs/` Parquet·GraphML | 수 MB~수십 MB | 코드로 재생성 가능한 중간 산출물 |
 
 위 자료는 일반 Git에 넣지 않는다. 공유가 필요하면 Git LFS 또는 팀 공유 저장소를 사용하고, 저장소에는 동일한 상대경로로 배치한다.
@@ -50,11 +51,15 @@
 
 ## 최종 결과 검증 기준
 
-- 분석 격자: 60,528개
+- 전체 입력 격자: 60,528개
+- 분석 격자: `취약노인수 > 0`인 21,263개
 - 분야: 공연, 스포츠관람
 - 최종 격자·분야 행: 121,056개
 - 공연시설: 동일 주소·좌표 기준 357개
 - 스포츠관람시설: 4개
 - 전시시설: 자료 확보 전까지 제외
 - 배차 기준: 시간대 구분 없는 전일 출발간격 중앙값
+- 도보 경로 상한: 20분
+- 대중교통 경로 상한: 총보행 15분, 기대대기 포함 전체 90분
 - 접근성 민감도: beta=2, 3, 4
+- 전체 시설 종합점수: `100 / 361 × Σ exp(-3G)`; 접근 불가 시설 기여도 0

@@ -30,7 +30,8 @@ DEFAULT_FACILITY_SNAP = Path(
 )
 DEFAULT_OUTPUT_DIR = Path("outputs/fixed_accessibility_inputs/transit_paths")
 
-MAX_JOURNEY_TIME_MIN = 60.0
+MAX_JOURNEY_TIME_MIN = 90.0
+MAX_TOTAL_WALK_TIME_MIN = 15.0
 DISTANCE_BURDEN_FULL_MIN = 10.0
 WAIT_BURDEN_FULL_MIN = 20.0
 TRANSFER_BURDEN_FULL_COUNT = 3.0
@@ -45,6 +46,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
     parser.add_argument(
         "--maximum-journey-time-min", type=float, default=MAX_JOURNEY_TIME_MIN
+    )
+    parser.add_argument(
+        "--maximum-total-walk-time-min",
+        type=float,
+        default=MAX_TOTAL_WALK_TIME_MIN,
     )
     parser.add_argument(
         "--facility-limit",
@@ -327,7 +333,9 @@ def _write_frame(
 def main() -> None:
     args = parse_args()
     args.output_dir.mkdir(parents=True, exist_ok=True)
-    output_path = args.output_dir / "transit_grid_facility_paths_60min.parquet"
+    output_path = (
+        args.output_dir / "transit_grid_facility_paths_90min_walk15min.parquet"
+    )
     summary_path = args.output_dir / "transit_grid_category_summary.csv"
 
     states = pd.read_parquet(
@@ -335,13 +343,17 @@ def main() -> None:
     ).reset_index(drop=True)
     states["state_index"] = np.arange(len(states), dtype=np.int32)
     access = pd.read_parquet(
-        args.connector_dir / "grid_to_transit_stop_walk_600m.parquet"
+        args.connector_dir / "grid_to_transit_stop_walk_900m.parquet"
     ).reset_index(drop=True)
     egress = pd.read_parquet(
-        args.connector_dir / "transit_stop_to_facility_walk_600m.parquet"
+        args.connector_dir / "transit_stop_to_facility_walk_900m.parquet"
     ).reset_index(drop=True)
     grids = pd.read_parquet(args.grid_snap).reset_index(drop=True)
     facilities = pd.read_parquet(args.facility_snap).reset_index(drop=True)
+    if "취약노인수" not in grids.columns:
+        raise RuntimeError("Grid snap input is missing 취약노인수")
+    if (pd.to_numeric(grids["취약노인수"], errors="raise") <= 0).any():
+        raise RuntimeError("Grid snap input contains grids with 취약노인수 <= 0")
     if args.facility_limit is not None:
         facilities = facilities.head(args.facility_limit).reset_index(drop=True)
         egress = egress.loc[
@@ -390,8 +402,7 @@ def main() -> None:
     category_stats: dict[str, dict[str, np.ndarray]] = {}
     for category in categories:
         category_stats[category] = {
-            "count_30": np.zeros(len(grids), dtype=np.int32),
-            "count_60": np.zeros(len(grids), dtype=np.int32),
+            "count_90_walk15": np.zeros(len(grids), dtype=np.int32),
             "nearest_time": np.full(len(grids), np.inf, dtype=np.float64),
             "nearest_cost": np.full(len(grids), np.inf, dtype=np.float64),
             "nearest_facility": np.full(len(grids), "", dtype=object),
@@ -400,6 +411,7 @@ def main() -> None:
     writer: pq.ParquetWriter | None = None
     written_rows = 0
     facilities_without_path = 0
+    paths_rejected_by_total_walk_limit = 0
     component_time_error_max = 0.0
     try:
         for facility_number, facility in enumerate(facilities.itertuples(index=False), 1):
@@ -460,13 +472,6 @@ def main() -> None:
                 raise RuntimeError("A selected transit path has no egress connector")
             selected_egress = egress.iloc[egress_indices].reset_index(drop=True)
 
-            initial_wait = states.loc[
-                selected_states, "expected_initial_wait_min"
-            ].to_numpy(dtype=np.float64)
-            transfer_wait = path_attributes["transfer_wait_min"].astype(np.float64)
-            total_wait = initial_wait + transfer_wait
-            transfer_count = path_attributes["transfer_count"].astype(np.int16)
-            in_vehicle = path_attributes["in_vehicle_time_min"].astype(np.float64)
             transfer_min_time = path_attributes["transfer_min_time_min"].astype(
                 np.float64
             )
@@ -476,6 +481,45 @@ def main() -> None:
             egress_walk_time = selected_egress["elderly_walk_time_min"].to_numpy(
                 dtype=np.float64
             )
+            total_transit_walk_time = (
+                access_walk_time + transfer_min_time + egress_walk_time
+            )
+            feasible_walk = (
+                total_transit_walk_time <= args.maximum_total_walk_time_min + 1e-9
+            )
+            paths_rejected_by_total_walk_limit += int((~feasible_walk).sum())
+            if not np.any(feasible_walk):
+                facilities_without_path += 1
+                continue
+            if not np.all(feasible_walk):
+                reachable_grid_codes = reachable_grid_codes[feasible_walk]
+                selected_access = selected_access.loc[feasible_walk].reset_index(drop=True)
+                selected_states = selected_states[feasible_walk]
+                selected_egress = selected_egress.loc[feasible_walk].reset_index(drop=True)
+                path_attributes = {
+                    key: values[feasible_walk]
+                    for key, values in path_attributes.items()
+                }
+                transfer_min_time = path_attributes[
+                    "transfer_min_time_min"
+                ].astype(np.float64)
+                access_walk_time = selected_access[
+                    "elderly_walk_time_min"
+                ].to_numpy(dtype=np.float64)
+                egress_walk_time = selected_egress[
+                    "elderly_walk_time_min"
+                ].to_numpy(dtype=np.float64)
+                total_transit_walk_time = (
+                    access_walk_time + transfer_min_time + egress_walk_time
+                )
+
+            initial_wait = states.loc[
+                selected_states, "expected_initial_wait_min"
+            ].to_numpy(dtype=np.float64)
+            transfer_wait = path_attributes["transfer_wait_min"].astype(np.float64)
+            total_wait = initial_wait + transfer_wait
+            transfer_count = path_attributes["transfer_count"].astype(np.int16)
+            in_vehicle = path_attributes["in_vehicle_time_min"].astype(np.float64)
             movement_time = access_walk_time + path_attributes["movement_time_min"]
             journey_time = grid_minimum[reachable_grid_codes]
             component_time = movement_time + total_wait
@@ -543,7 +587,9 @@ def main() -> None:
                     "GRID_CD": selected_access["GRID_CD"].astype(str).to_numpy(),
                     "facility_id": str(facility.facility_id),
                     "facility_category": str(facility.facility_category),
-                    "route_selection": "minimum_expected_journey_time",
+                    "route_selection": (
+                        "minimum_expected_journey_time_then_total_walk_screen"
+                    ),
                     "access_stop_id": selected_access["stop_id"].astype(str).to_numpy(),
                     "first_pattern_state_id": states.loc[
                         selected_states, "state_id"
@@ -562,6 +608,7 @@ def main() -> None:
                     "access_walk_time_min": access_walk_time,
                     "egress_walk_time_min": egress_walk_time,
                     "transfer_min_time_min": transfer_min_time,
+                    "total_transit_walk_time_min": total_transit_walk_time,
                     "in_vehicle_time_min": in_vehicle,
                     "movement_time_excluding_wait_min": movement_time,
                     "initial_expected_wait_min": initial_wait,
@@ -588,9 +635,7 @@ def main() -> None:
             written_rows += len(output)
 
             stats = category_stats[str(facility.facility_category)]
-            stats["count_60"][reachable_grid_codes] += 1
-            within_30 = journey_time <= 30.0
-            stats["count_30"][reachable_grid_codes[within_30]] += 1
+            stats["count_90_walk15"][reachable_grid_codes] += 1
             faster = journey_time < stats["nearest_time"][reachable_grid_codes]
             if np.any(faster):
                 target_codes = reachable_grid_codes[faster]
@@ -614,13 +659,16 @@ def main() -> None:
         raise RuntimeError("No grid-to-facility transit paths were generated")
 
     summary_frames: list[pd.DataFrame] = []
-    grid_base = grids[["GRID_CD", "행정동코드", "시군구", "행정동"]].copy()
+    grid_base = grids[
+        ["GRID_CD", "행정동코드", "시군구", "행정동", "취약노인수"]
+    ].copy()
     for category in categories:
         stats = category_stats[category]
         frame = grid_base.copy()
         frame["facility_category"] = category
-        frame["transit_facility_count_30min"] = stats["count_30"]
-        frame["transit_facility_count_60min"] = stats["count_60"]
+        frame["transit_facility_count_90min_walk15min"] = stats[
+            "count_90_walk15"
+        ]
         frame["nearest_transit_journey_time_min"] = np.where(
             np.isfinite(stats["nearest_time"]), stats["nearest_time"], np.nan
         )
@@ -638,11 +686,18 @@ def main() -> None:
     if output_metadata.num_rows != written_rows:
         raise RuntimeError("Transit path Parquet row count does not match generated rows")
     build_summary = {
-        "route_selection": "minimum_expected_journey_time",
+        "route_selection": "minimum_expected_journey_time_then_total_walk_screen",
+        "route_selection_note": (
+            "The minimum expected-time route is selected first, then rejected if "
+            "its access + transfer + egress walking exceeds the total-walk cap."
+        ),
         "headway_basis": "full_service_day_median",
         "time_band_condition": "none",
-        "maximum_access_walk_m": 600.0,
-        "maximum_egress_walk_m": 600.0,
+        "maximum_access_walk_m": 900.0,
+        "maximum_egress_walk_m": 900.0,
+        "maximum_total_transit_walk_time_min": float(
+            args.maximum_total_walk_time_min
+        ),
         "maximum_journey_time_with_wait_min": float(args.maximum_journey_time_min),
         "distance_burden": "min(movement_time_excluding_wait_min / 10, 1)",
         "distance_burden_interpretation": (
@@ -673,6 +728,10 @@ def main() -> None:
             for key, value in facilities["facility_category"].value_counts().items()
         },
         "facilities_without_transit_path": int(facilities_without_path),
+        "paths_rejected_by_total_walk_limit": int(
+            paths_rejected_by_total_walk_limit
+        ),
+        "population_filter": "취약노인수 > 0",
         "path_rows": int(written_rows),
         "grid_category_summary_rows": int(len(grid_summary)),
         "maximum_component_time_reconciliation_error_min": float(

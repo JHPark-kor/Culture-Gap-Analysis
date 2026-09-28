@@ -29,7 +29,7 @@ DEFAULT_FACILITY_SNAP = Path(
 )
 DEFAULT_OUTPUT = Path("outputs/fixed_accessibility_inputs/walk_paths")
 
-MAX_WALK_DISTANCE_M = 3_600.0
+MAX_WALK_DISTANCE_M = 1_200.0
 DISTANCE_BURDEN_FULL_M = 600.0
 WRITE_BATCH_ROWS = 100_000
 
@@ -146,7 +146,7 @@ def flush_buffer(
 def main() -> None:
     args = parse_args()
     args.output_dir.mkdir(parents=True, exist_ok=True)
-    path_output = args.output_dir / "walk_grid_facility_paths_60min.parquet"
+    path_output = args.output_dir / "walk_grid_facility_paths_20min.parquet"
     summary_output = args.output_dir / "walk_grid_category_summary.csv"
     build_summary_output = args.output_dir / "walk_path_build_summary.json"
 
@@ -154,6 +154,10 @@ def main() -> None:
     edges = pd.read_parquet(args.edges)
     grids = pd.read_parquet(args.grid_snap)
     facilities = pd.read_parquet(args.facility_snap)
+    if "취약노인수" not in grids.columns:
+        raise ValueError("Grid snap input is missing 취약노인수")
+    if (pd.to_numeric(grids["취약노인수"], errors="raise") <= 0).any():
+        raise ValueError("Grid snap input contains grids with 취약노인수 <= 0")
 
     adjacency, node_to_position = build_reverse_adjacency(nodes, edges)
     grids = grids.reset_index(drop=True)
@@ -174,8 +178,7 @@ def main() -> None:
     grid_count = len(grids)
     for category in categories:
         category_stats[category] = {
-            "count_30": np.zeros(grid_count, dtype=np.int32),
-            "count_60": np.zeros(grid_count, dtype=np.int32),
+            "count_20": np.zeros(grid_count, dtype=np.int32),
             "nearest_time": np.full(grid_count, np.inf, dtype=np.float64),
             "nearest_cost": np.full(grid_count, np.inf, dtype=np.float64),
             "nearest_facility": np.full(grid_count, "", dtype=object),
@@ -242,9 +245,7 @@ def main() -> None:
                     buffer["generalized_cost_walk"].append(generalized_cost)
                     facility_pair_count += 1
 
-                    stats["count_60"][grid_row] += 1
-                    if walk_time <= 30.0:
-                        stats["count_30"][grid_row] += 1
+                    stats["count_20"][grid_row] += 1
                     if walk_time < stats["nearest_time"][grid_row]:
                         stats["nearest_time"][grid_row] = walk_time
                         stats["nearest_facility"][grid_row] = str(facility.facility_id)
@@ -274,13 +275,20 @@ def main() -> None:
         raise RuntimeError("No walking paths were generated")
 
     summaries: list[pd.DataFrame] = []
-    base = grids[["GRID_CD", "행정동코드", "시군구", "행정동"]].copy()
+    base = grids[
+        [
+            "GRID_CD",
+            "행정동코드",
+            "시군구",
+            "행정동",
+            "취약노인수",
+        ]
+    ].copy()
     for category in categories:
         stats = category_stats[category]
         frame = base.copy()
         frame["facility_category"] = category
-        frame["walk_facility_count_30min"] = stats["count_30"]
-        frame["walk_facility_count_60min"] = stats["count_60"]
+        frame["walk_facility_count_20min"] = stats["count_20"]
         frame["nearest_walk_time_min"] = np.where(
             np.isfinite(stats["nearest_time"]), stats["nearest_time"], np.nan
         )
@@ -312,7 +320,8 @@ def main() -> None:
         "generalized_cost_walk": "(distance_burden + slope_burden + 0) / 3",
         "slope_metric_scope": "network_edges_only; off-network snap segments have no DEM slope",
         "path_rows": int(written_rows),
-        "facilities_with_no_grid_within_60min": int(facilities_with_no_pairs),
+        "population_filter": "취약노인수 > 0",
+        "facilities_with_no_grid_within_20min": int(facilities_with_no_pairs),
         "grid_category_summary_rows": int(len(grid_summary)),
     }
     build_summary_output.write_text(

@@ -6,19 +6,25 @@
   "exhibition_status": "skipped_until_dataset_is_supplied",
   "path_selection": "minimum_generalized_cost_between_walk_and_transit",
   "walk_transit_tie_break": "walk",
-  "maximum_candidate_journey_time_min": 60.0,
+  "population_filter": "취약노인수 > 0",
+  "maximum_walk_candidate_time_min": 20.0,
+  "maximum_transit_total_walk_time_min": 15.0,
+  "maximum_transit_journey_time_min": 90.0,
   "beta_values": [
     2.0,
     3.0,
     4.0
   ],
   "accessibility_formula": "sum(exp(-beta * generalized_cost))",
+  "overall_accessibility_formula": "100 / all_facilities * sum(exp(-3 * generalized_cost)); unreachable facilities contribute 0",
+  "overall_accessibility_scope": "all facility categories combined",
+  "overall_facility_count": 361,
   "facility_rows": 361,
-  "facilities_without_any_path": 0,
-  "final_grid_facility_path_rows": 11845413,
-  "pairs_with_both_walk_and_transit_candidates": 710250,
-  "walk_selected_rows": 757078,
-  "transit_selected_rows": 11088335,
-  "grid_category_rows": 121056,
-  "grid_count": 60528
+  "facilities_without_any_path": 1,
+  "final_grid_facility_path_rows": 4822866,
+  "pairs_with_both_walk_and_transit_candidates": 23874,
+  "walk_selected_rows": 23544,
+  "transit_selected_rows": 4799322,
+  "grid_category_rows": 42526,
+  "grid_count": 21263
 }
