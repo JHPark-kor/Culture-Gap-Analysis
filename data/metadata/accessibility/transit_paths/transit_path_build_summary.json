@@ -1,0 +1,32 @@
+{
+  "route_selection": "minimum_expected_journey_time",
+  "headway_basis": "full_service_day_median",
+  "time_band_condition": "none",
+  "maximum_access_walk_m": 600.0,
+  "maximum_egress_walk_m": 600.0,
+  "maximum_journey_time_with_wait_min": 60.0,
+  "distance_burden": "min(movement_time_excluding_wait_min / 10, 1)",
+  "distance_burden_interpretation": "10-minute movement reference, equivalent to 600 m at 60 m/min; expected wait excluded",
+  "slope_burden": "clip((path_mean_abs_slope_deg - 2) / 6, 0, 1)",
+  "slope_scope": "known access and egress walk-network edges only; snap segments and GTFS transfer connectors have no DEM slope",
+  "transfer_burden": "min(transfer_count / 3, 1)",
+  "wait_burden": "min(total_expected_wait_min / 20, 1)",
+  "transport_burden": "0.5 * transfer_burden + 0.5 * wait_burden",
+  "generalized_cost_transit": "(distance_burden + slope_burden + transport_burden) / 3",
+  "state_nodes": 111363,
+  "facility_nodes": 361,
+  "reverse_graph_edges": 2831443,
+  "ride_edges": 109406,
+  "transfer_edges": 2678644,
+  "egress_state_edges": 43393,
+  "grid_rows": 60528,
+  "facility_rows": 361,
+  "facilities_by_category": {
+    "공연": 357,
+    "스포츠관람": 4
+  },
+  "facilities_without_transit_path": 6,
+  "path_rows": 11736658,
+  "grid_category_summary_rows": 121056,
+  "maximum_component_time_reconciliation_error_min": 4.263256414560601e-14
+}

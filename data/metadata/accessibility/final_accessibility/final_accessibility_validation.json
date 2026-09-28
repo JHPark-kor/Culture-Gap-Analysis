@@ -1,0 +1,29 @@
+{
+  "status": "passed",
+  "path_rows": 11845413,
+  "row_groups": 361,
+  "facilities_with_paths": 361,
+  "duplicate_grid_facility_pairs": 0,
+  "required_null_cells": 0,
+  "mode_candidate_errors": 0,
+  "selected_cost_errors": 0,
+  "generalized_cost_errors": 0,
+  "journey_time_errors": 0,
+  "mode_detail_errors": 0,
+  "burden_range": [
+    0.0,
+    1.0
+  ],
+  "aggregate_row_differences": {
+    "facility_count_30min": 0,
+    "facility_count_60min": 0,
+    "selected_walk_path_count": 0,
+    "selected_transit_path_count": 0
+  },
+  "beta_max_absolute_differences": {
+    "accessibility_beta_2": 2.842170943040401e-14,
+    "accessibility_beta_3": 1.4210854715202004e-14,
+    "accessibility_beta_4": 1.4210854715202004e-14
+  },
+  "issues": []
+}

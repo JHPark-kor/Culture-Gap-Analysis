@@ -10,6 +10,7 @@ geopandas
 shapely
 pyproj
 pyarrow
+rasterio
 folium
 mapclassify
 networkx

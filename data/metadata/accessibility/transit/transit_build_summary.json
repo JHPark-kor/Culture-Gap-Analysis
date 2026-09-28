@@ -1,0 +1,20 @@
+{
+  "source_gtfs": "data/raw/transport/seoul_gtfs",
+  "boundary": "data/raw/spatial/accessibility/boundary/seoul_gu.json",
+  "headway_basis": "full_service_day_median_of_consecutive_first_stop_departures",
+  "all_stops": 220577,
+  "stops_inside_seoul_boundary": 13265,
+  "selected_stops_on_seoul_serving_trips": 26504,
+  "selected_routes": 1304,
+  "selected_trips": 103849,
+  "selected_stop_time_rows": 6538866,
+  "route_patterns": 1957,
+  "route_patterns_using_route_fallback": 202,
+  "route_patterns_using_global_fallback": 26,
+  "median_pattern_headway_min": 16.0,
+  "p10_pattern_headway_min": 8.0,
+  "p90_pattern_headway_min": 1064.68,
+  "median_expected_initial_wait_min": 8.0,
+  "transfer_wait_edges": 985182,
+  "explicit_gtfs_transfers_retained": 230
+}

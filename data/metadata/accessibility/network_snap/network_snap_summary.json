@@ -1,0 +1,48 @@
+{
+  "source_grid": "external:grid_pop_access.csv (selected grid identity and center columns only)",
+  "source_walk_nodes": "outputs\\fixed_accessibility_inputs\\terrain\\seoul_walk_nodes_elevation.parquet",
+  "walk_graph_nodes": 164107,
+  "grid_rows": 60528,
+  "facility_rows": 361,
+  "facilities_by_category": {
+    "공연": 357,
+    "스포츠관람": 4
+  },
+  "exhibition_facilities_status": "not_provided",
+  "transit_stop_rows": 26504,
+  "transit_stops_within_1km_of_walk_network": 13971,
+  "elderly_walk_speed_m_min": 60.0,
+  "grid_snap": {
+    "count": 60528,
+    "median_m": 41.0838355408163,
+    "p95_m": 304.60661051683985,
+    "p99_m": 618.9713271071979,
+    "max_m": 2498.865429504141,
+    "count_gt_100m": 13293,
+    "count_gt_250m": 4269,
+    "count_gt_500m": 918,
+    "count_gt_1000m": 351
+  },
+  "facility_snap": {
+    "count": 361,
+    "median_m": 28.232524268414046,
+    "p95_m": 77.8057333590489,
+    "p99_m": 118.71408817353742,
+    "max_m": 278.79607482237617,
+    "count_gt_100m": 7,
+    "count_gt_250m": 1,
+    "count_gt_500m": 0,
+    "count_gt_1000m": 0
+  },
+  "transit_stop_snap": {
+    "count": 26504,
+    "median_m": 392.6866913492608,
+    "p95_m": 24230.794454799518,
+    "p99_m": 35652.219514863085,
+    "max_m": 73815.15118290384,
+    "count_gt_100m": 13678,
+    "count_gt_250m": 13423,
+    "count_gt_500m": 13115,
+    "count_gt_1000m": 12533
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "headway_basis": "full_service_day_median_of_consecutive_first_stop_departures",
+  "pattern_definition": "route_id + first_stop_id + last_stop_id",
+  "allowed_route_types": [
+    0,
+    1
+  ],
+  "initial_wait": "first boarded pattern median headway / 2",
+  "transfer_wait": "each subsequently boarded pattern median headway / 2",
+  "transfer_count": "number of boarded patterns - 1",
+  "transfer_burden": "min(transfer_count / 3, 1)",
+  "wait_burden": "min(total_expected_wait_min / 20, 1)",
+  "transport_burden": "0.5 * transfer_burden + 0.5 * wait_burden"
+}

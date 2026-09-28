@@ -5,12 +5,16 @@ data/**
 !data/raw/
 !data/raw/**/
 !data/raw/**/.gitkeep
+!data/raw/spatial/accessibility/
+!data/raw/spatial/accessibility/**
 !data/interim/
 !data/interim/.gitkeep
 !data/processed/
 !data/processed/.gitkeep
 !data/processed/**/
 !data/processed/**/.gitkeep
+!data/processed/accessibility/
+!data/processed/accessibility/**
 !data/dashboard/
 !data/dashboard/**/
 !data/dashboard/**/.gitkeep
@@ -31,6 +35,8 @@ output/**
 !output/
 !output/**/
 !output/**/.gitkeep
+!output/report/accessibility/
+!output/report/accessibility/**
 /outputs/
 /image/
 legacy/

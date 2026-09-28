@@ -1,0 +1,53 @@
+{
+  "status": "passed",
+  "path_rows": 11736658,
+  "parquet_row_groups": 355,
+  "facilities_with_paths": 355,
+  "facilities_without_paths": [
+    "PFCL_0BDC35F14C34",
+    "PFCL_0E11DFF99C7A",
+    "PFCL_1DFDB8F48E89",
+    "PFCL_33245B8B2BC9",
+    "PFCL_BEDCC4B8668E",
+    "PFCL_F67D55EE9D9B"
+  ],
+  "duplicate_grid_facility_pairs": 0,
+  "null_cells": 0,
+  "journey_time_min": 3.598786514829011,
+  "journey_time_max": 59.999997148389824,
+  "paths_within_30_minutes": 1461652,
+  "maximum_component_time_error_min": 4.263256414560601e-14,
+  "burden_ranges": {
+    "distance_burden": [
+      0.08063465499469288,
+      1.0
+    ],
+    "slope_burden": [
+      0.0,
+      1.0
+    ],
+    "transfer_burden": [
+      0.0,
+      1.0
+    ],
+    "wait_burden": [
+      0.075,
+      1.0
+    ],
+    "transport_burden": [
+      0.0375,
+      1.0
+    ],
+    "generalized_cost_transit": [
+      0.05187821833156429,
+      1.0
+    ]
+  },
+  "rows_by_category": {
+    "공연": 11653276,
+    "스포츠관람": 83382
+  },
+  "summary_count_30": 1461652,
+  "summary_count_60": 11736658,
+  "issues": []
+}

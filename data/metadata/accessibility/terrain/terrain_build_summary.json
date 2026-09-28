@@ -1,0 +1,33 @@
+{
+  "source_graph": "data/raw/spatial/accessibility/network/seoul_walk.graphml",
+  "dem_tiles": [
+    "seoul_dem_37608_2025.zip",
+    "seoul_dem_37612_2025.zip",
+    "seoul_dem_37705_2025.zip",
+    "seoul_dem_37709_2025.zip"
+  ],
+  "dem_crs": "PROJCS[\"KGD2002_Unified_Coordinate_System\",GEOGCS[\"GCS_KGD2002\",DATUM[\"D_Korean_Geodetic_Datum_2002\",SPHEROID[\"GRS_1980\",6378137,298.257222101]],PRIMEM[\"Greenwich\",0],UNIT[\"Degree\",0.0174532925199433]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"latitude_of_origin\",38],PARAMETER[\"central_meridian\",127.5],PARAMETER[\"scale_factor\",0.9996],PARAMETER[\"false_easting\",1000000],PARAMETER[\"false_northing\",2000000],UNIT[\"Meter\",1],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH]]",
+  "dem_resolution_m": 90.0,
+  "dem_bounds": [
+    933390.0,
+    1916190.0,
+    978390.0,
+    1972440.0
+  ],
+  "graph_nodes": 164107,
+  "graph_edges": 470138,
+  "nodes_with_elevation": 164107,
+  "nodes_missing_elevation": 0,
+  "edges_with_slope": 470138,
+  "edges_missing_slope": 0,
+  "elevation_min_m": 0.43029763770237717,
+  "elevation_median_m": 25.334825750519947,
+  "elevation_max_m": 708.6093699706776,
+  "slope_abs_median_deg": 0.9280926636196778,
+  "slope_abs_p95_deg": 7.378967283126023,
+  "slope_abs_max_deg": 36.44652769582806,
+  "edge_share_ge_2deg": 0.3016476013425845,
+  "edge_share_ge_5deg": 0.1043821175910052,
+  "edge_share_ge_8deg": 0.04134105305250799,
+  "elderly_walk_speed_m_min": 60.0
+}
