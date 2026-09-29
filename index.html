@@ -1112,7 +1112,12 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   function renderGridMap() {
     if (mode !== 'grid' || !gridData) return;
-    if (map.getZoom() < 12) return;
+    if (map.getZoom() < 14) {
+      gridLayer.clearLayers();
+      gridLayerById.clear();
+      $('map-status').innerHTML = '<span class="status-dot"></span> 격자를 보려면 지도를 확대하세요';
+      return;
+    }
     const bounds = map.getBounds().pad(0.08);
     const features = [];
     for (const row of activeGrids()) {
@@ -1196,7 +1201,7 @@ window.addEventListener('DOMContentLoaded', async () => {
       map.removeLayer(regionLayer);
       map.removeLayer(badgeLayer);
       gridLayer.addTo(map);
-      if (map.getZoom() < 12) map.setZoom(12);
+      if (map.getZoom() < 14) map.setZoom(14);
       renderGridMap();
     } else {
       map.removeLayer(gridLayer);
@@ -1213,7 +1218,6 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   function fitSeoul() {
     map.fitBounds(seoulLayer.getBounds(), { padding: [14, 14] });
-    if (mode === 'grid' && map.getZoom() < 12) map.setZoom(12);
   }
 
   function updateDistrictLabels() {
