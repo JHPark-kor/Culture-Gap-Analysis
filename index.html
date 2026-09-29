@@ -916,11 +916,11 @@ window.addEventListener('DOMContentLoaded', async () => {
     ['population', '취약노인 규모', 0.25],
     ['communication', '커뮤니케이션 부족', 0.25],
   ];
-  let data, gridData, map, basemapLayer, seoulLayer, regionLayer, gridLayer;
+  let data, gridData, map, basemapLayer, seoulLayer, regionLayer, gridLayer, gridCanvas;
   let districtLayer, districtLabelLayer, dongLayer, facilityLayer, badgeLayer;
   let mode = 'region', selectedId = null, selectedGridId = null, listLimit = 10;
   const layerById = new Map();
-  const gridLayerById = new Map();
+  const gridColors = new Map();
   const markerById = new Map();
   const regionById = new Map();
   const gridById = new Map();
@@ -977,10 +977,10 @@ window.addEventListener('DOMContentLoaded', async () => {
     const p = feature.properties;
     const chosen = p.id === selectedId;
     return {
-      color: chosen ? '#00a89c' : '#4258a7', weight: chosen ? 3 : 0.9,
+      color: chosen ? '#00a89c' : '#4258a7', weight: chosen ? 3 : 1.1,
       opacity: visible ? 1 : 0.16,
       fillColor: interpolateColor(p.score, data.metadata.scoreMin, data.metadata.scoreMax),
-      fillOpacity: visible ? (chosen ? 0.82 : 0.61) : 0.06,
+      fillOpacity: visible ? (chosen ? 0.94 : 0.86) : 0.06,
     };
   }
 
@@ -1102,33 +1102,70 @@ window.addEventListener('DOMContentLoaded', async () => {
     return { type: 'Feature', properties: { id: row[0] }, geometry: { type: 'Polygon', coordinates: [ring] } };
   }
 
-  function styleGrid(row) {
-    const chosen = row[0] === selectedGridId;
-    return {
-      color: chosen ? '#00a89c' : '#6475b2', weight: chosen ? 2.8 : 0.5,
-      fillColor: interpolateColor(row[1], 0, 1), fillOpacity: chosen ? 0.88 : 0.77,
-    };
-  }
-
   function renderGridMap() {
-    if (mode !== 'grid' || !gridData) return;
-    if (map.getZoom() < 14) {
-      gridLayer.clearLayers();
-      gridLayerById.clear();
-      $('map-status').innerHTML = '<span class="status-dot"></span> 격자를 보려면 지도를 확대하세요';
-      return;
-    }
+    if (mode !== 'grid' || !gridData || !gridCanvas) return;
+    const size = map.getSize();
+    const ratio = window.devicePixelRatio || 1;
+    gridCanvas.width = Math.round(size.x * ratio);
+    gridCanvas.height = Math.round(size.y * ratio);
+    gridCanvas.style.width = `${size.x}px`;
+    gridCanvas.style.height = `${size.y}px`;
+    L.DomUtil.setPosition(gridCanvas, map.containerPointToLayerPoint([0, 0]));
+    const context = gridCanvas.getContext('2d');
+    context.setTransform(ratio, 0, 0, ratio, 0, 0);
     const bounds = map.getBounds().pad(0.08);
-    const features = [];
+    let visibleCount = 0;
+    let selectedRow = null;
     for (const row of activeGrids()) {
       const lat = (row[12][0][0] + row[12][2][0]) / 2;
       const lon = (row[12][0][1] + row[12][2][1]) / 2;
-      if (bounds.contains([lat, lon])) features.push(gridFeature(row));
+      if (!bounds.contains([lat, lon])) continue;
+      visibleCount++;
+      if (row[0] === selectedGridId) {
+        selectedRow = row;
+        continue;
+      }
+      const colorKey = Math.round(row[1] * 1000);
+      if (!gridColors.has(colorKey)) gridColors.set(colorKey, interpolateColor(row[1], 0, 1));
+      drawGridCell(context, row, gridColors.get(colorKey), false);
     }
-    gridLayer.clearLayers();
-    gridLayerById.clear();
-    gridLayer.addData({ type: 'FeatureCollection', features });
-    $('map-status').innerHTML = `<span class="status-dot"></span> 화면 내 격자 ${number(features.length)}개`;
+    if (selectedRow) drawGridCell(context, selectedRow, '#00a89c', true);
+    context.globalAlpha = 1;
+    $('map-status').innerHTML = `<span class="status-dot"></span> 화면 내 격자 ${number(visibleCount)}개`;
+  }
+
+  function drawGridCell(context, row, color, chosen) {
+    context.beginPath();
+    row[12].forEach(([lat, lon], index) => {
+      const point = map.latLngToContainerPoint([lat, lon]);
+      if (index === 0) context.moveTo(point.x, point.y);
+      else context.lineTo(point.x, point.y);
+    });
+    context.closePath();
+    context.globalAlpha = chosen ? 0.9 : 0.62;
+    context.fillStyle = color;
+    context.fill();
+    if (chosen || map.getZoom() >= 14) {
+      context.globalAlpha = chosen ? 1 : 0.4;
+      context.strokeStyle = chosen ? '#008b82' : '#6475b2';
+      context.lineWidth = chosen ? 2.5 : 0.5;
+      context.stroke();
+    }
+  }
+
+  function gridAtPoint(latlng) {
+    for (const row of activeGrids()) {
+      const corners = row[12];
+      let inside = false;
+      for (let index = 0, previous = corners.length - 1; index < corners.length; previous = index++) {
+        const [latA, lonA] = corners[index];
+        const [latB, lonB] = corners[previous];
+        if ((latA > latlng.lat) !== (latB > latlng.lat) &&
+            latlng.lng < (lonB - lonA) * (latlng.lat - latA) / (latB - latA) + lonA) inside = !inside;
+      }
+      if (inside) return row;
+    }
+    return null;
   }
 
   function selectGrid(id, zoom) {
@@ -1201,7 +1238,6 @@ window.addEventListener('DOMContentLoaded', async () => {
       map.removeLayer(regionLayer);
       map.removeLayer(badgeLayer);
       gridLayer.addTo(map);
-      if (map.getZoom() < 14) map.setZoom(14);
       renderGridMap();
     } else {
       map.removeLayer(gridLayer);
@@ -1267,6 +1303,9 @@ window.addEventListener('DOMContentLoaded', async () => {
     map.createPane('seoulBoundary');
     map.getPane('seoulBoundary').style.zIndex = 455;
     map.getPane('seoulBoundary').style.pointerEvents = 'none';
+    map.createPane('gridCells');
+    map.getPane('gridCells').style.zIndex = 390;
+    map.getPane('gridCells').style.pointerEvents = 'none';
     seoulLayer = L.geoJSON(data.seoul, { pane: 'seoulBoundary', style: { color: '#213b91', weight: 2.5, opacity: 0.95, fillOpacity: 0 }, interactive: false }).addTo(map);
     districtLayer = L.geoJSON(data.districts, {
       style: { color: '#6478a9', weight: 1.1, opacity: 0.78, fillColor: '#fff', fillOpacity: 0.14 }, interactive: false,
@@ -1288,15 +1327,17 @@ window.addEventListener('DOMContentLoaded', async () => {
         layer.on('click', () => selectRegion(p.id, false));
       },
     }).addTo(map);
-    gridLayer = L.geoJSON(null, {
-      style: (feature) => styleGrid(gridById.get(feature.properties.id)),
-      onEachFeature: (feature, layer) => {
-        const row = gridById.get(feature.properties.id);
-        gridLayerById.set(row[0], layer);
-        layer.bindTooltip(`${row[6]} ${row[7]} · ${score(row[1])}`, { sticky: true });
-        layer.on('click', () => selectGrid(row[0], false));
+    gridLayer = new (L.Layer.extend({
+      onAdd() {
+        gridCanvas = L.DomUtil.create('canvas', 'grid-canvas', map.getPane('gridCells'));
+        gridCanvas.style.pointerEvents = 'none';
+        renderGridMap();
       },
-    });
+      onRemove() {
+        gridCanvas.remove();
+        gridCanvas = null;
+      },
+    }))();
     badgeLayer = L.layerGroup().addTo(map);
     for (const feature of data.regions.features.filter((item) => item.properties.rank <= 10)) {
       const p = feature.properties;
@@ -1311,6 +1352,12 @@ window.addEventListener('DOMContentLoaded', async () => {
     facilityLayer = L.layerGroup().addTo(map);
     map.on('zoomend', updateDistrictLabels);
     map.on('moveend', renderGridMap);
+    map.on('resize', renderGridMap);
+    map.on('click', (event) => {
+      if (mode !== 'grid') return;
+      const row = gridAtPoint(event.latlng);
+      if (row) selectGrid(row[0], false);
+    });
     fitSeoul();
     updateDistrictLabels();
   }
