@@ -16,7 +16,14 @@
 
 ## 분석 과정
 
-**EDA · 문제 원인 분석 → 지역별 고령 인구 추정 → 문화시설 접근성·디지털 이용량 분석 → 지역별 취약 점수 산출 → 취약 지역 권역화 → 정책 대시보드 구현 및 배포**
+```mermaid
+flowchart LR
+    A[이용 현황과 원인 분석] --> B[지역별 고령인구 추정]
+    B --> C[문화시설 접근성 분석]
+    C --> D[정보 접근성과 최종 취약점수]
+    D --> E[취약지역 권역화]
+    E --> F[정책 지도 구현]
+```
 
 - EDA · 문제 원인 분석: 공개용 코드 정리 중
 - 지역별 고령 인구 추정: [`code/02_population_estimation`](code/02_population_estimation/)
@@ -30,7 +37,7 @@
 ## 주요 결과
 
 ### 1. 저소득층의 기초문화예술 이용 저조
-![문화누리카드 분야별 이용 비중과 소득 계층 간 기초예술 관람률](output/image/readme/usage_and_income_experience.png)
+<img src="output/image/readme/usage_and_income_experience.png" alt="문화누리카드 분야별 이용 비중과 소득 계층 간 기초예술 관람률" width="70%">
 
 - 결과1 : 2025년 서울시 이용 비중은 도서 35.1%, 영화 25%인 반면 공연 0.97%, 전시 0.14%였습니다.
 - 결과2 : 소득이 낮은 집단은 그렇지 않은 집단에 비해 최근 기초예술 경험이 약 2배 낮았습니다.
@@ -39,7 +46,7 @@
 <br><br>
 
 ### 2. 넘어서기 힘든 ‘문화자본’의 장벽: 근본적인 관람 동기를 형성
-![소득집단별 관람 의향률과 관람의향자 중 최근 관람률](output/image/readme/intention_and_viewing.png)
+<img src="output/image/readme/intention_and_viewing.png" alt="소득집단별 관람 의향률과 관람의향자 중 최근 관람률" width="70%">
 
 - 결과 1: 저소득 집단과 그 외 소득집단의 ‘향후 기초예술 관람 의향’을 비교 분석한 결과, 저소득 집단은 기초예술에 대한 관람 의향 자체가 상대적으로 부족하다는 것을 확인했습니다. (16.9% vs 33.2%, 약 2배)
 - 결과 2: 반면 의향이 있는 사람 중 최근 관람 비율은 집단 간 차이를 거의 보이지 않았습니다.
@@ -47,7 +54,8 @@
 
 <br><br>
 
-![기초예술 관람의향 분석모형](output/image/readme/intention_model.png)
+<img src="output/image/readme/intention_model.png" alt="기초예술 관람의향 분석모형" width="70%">
+
 - 가설: **소득 집단 간 기초예술 관람 의향 격차는 현실적 여건(시간, 비용, 건강, 접근성)보다 문화 의식 형성 기회(문화 자본·교육·경험) 차이에 의해 더 많이 설명된다 -** 부르디외(Bourdieu, 1986)의 ‘문화자본론’에서 착안
 
 
@@ -55,7 +63,8 @@
 
 <br><br>
 
-![소득집단 간 기초예술 관람의향 격차 기여율](output/image/readme/income_gap_contribution.png)
+<img src="output/image/readme/income_gap_contribution.png" alt="소득집단 간 기초예술 관람의향 격차 기여율" width="70%">
+
 - 분석방법: 국민문화예술활동조사의 응답자료로부터 설명변수와 목표변수를 만들고 로지스틱 회귀모델과 shapely 격차 분해 기법을 사용했습니다.
 - 결과1: 문화 자본과, 최근 문화 경험이 현실적인 여건보다 의향에 더 크게 기여한 것으로 나타났습니다.
 - 결과2: 반면, 집단 간 격차 설명력에서는 문화 자본의 영향력이 늘어난 반면 최근 문화 경험은 축소되었습니다. 이는 최근 문화 경험 유무는 집단 간 차이가 크지 않기 때문입니다.
@@ -64,7 +73,7 @@
 <br><br>
 
 ### 3. 지역별 취약점수 도출
-![서울시 100m 격자별 시설·정보 접근성 및 최종 취약점수 지도](output/image/readme/vulnerability_scores.png)
+<img src="output/image/readme/vulnerability_scores.png" alt="서울시 100m 격자별 시설·정보 접근성 및 최종 취약점수 지도" width="70%">
 
 - 고령인구는 이동과 정보 탐색 능력이 상대적으로 취약합니다. 이는 기초 예술에 대한 접점을 더욱 어렵게 만듭니다.
 - 따라서 시설까지의 이동이 불편하고 정보 역량이 부족한 지역을 찾을 수 있는 지표를 설계했습니다.
@@ -73,7 +82,8 @@
 <br><br>
 
 ### 4. 취약권역
-![서울시 최종 취약점수 상위 20% DBSCAN 권역](output/image/최종취약지수_DBSCAN_상위20_서울권역.png)
+<img src="output/image/최종취약지수_DBSCAN_상위20_서울권역.png" alt="서울시 최종 취약점수 상위 20% DBSCAN 권역" width="70%">
+
 [취약권역 지도 프로토타입 열기](https://jhpark-kor.github.io/sgis-project/)
 
 - DBSCAN 군집 기법으로 취약점수가 높은 인접 격자를 묶어 223개 권역을 도출했습니다.
