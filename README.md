@@ -25,7 +25,7 @@ flowchart LR
     E --> F[정책 지도 구현]
 ```
 
-- EDA · 문제 원인 분석: 공개용 코드 정리 중
+- EDA · 문제 원인 분석: [`code/01_eda`](code/01_eda/)
 - 지역별 고령 인구 추정: [`code/02_population_estimation`](code/02_population_estimation/)
 - 문화시설 접근성·디지털 이용량 분석: [`code/03_accessibility`](code/03_accessibility/), [`code/03_abstract`](code/03_abstract/)
 - 지역별 취약 점수 산출: [`code/05_final_score`](code/05_final_score/)
@@ -99,7 +99,7 @@ flowchart LR
 
 ```text
 code/
-  01_eda/                    이용 현황 분석
+  01_eda/                    이용 현황·관람의향 분석
   02_population_estimation/  지역별 인구 추정
   03_accessibility/          문화시설 접근성 분석
   03_abstract/               비물리적 지표 분석
@@ -111,11 +111,13 @@ data/
   raw/                       원자료
     population/              인구 원자료
     culture_facilities/      문화시설 원자료
+    culture_survey/          국민문화예술활동조사 원자료
     mnc_merchants/           문화누리카드 관련 원자료
     spatial/                 격자·행정구역·지형
     network/                 네트워크 원자료
     transport/               대중교통 원자료
   processed/                 분석용 처리 결과
+    eda/                     이용 현황·관람의향 분석 결과
     spatial/                 분석용 격자
     estimated_population/    추정 총인구
     estimated_target_population/ 추정 대상인구
